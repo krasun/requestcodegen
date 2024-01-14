@@ -19,8 +19,8 @@ Using the library is as easy as:
 import { generateCode } from "requestcodegen";
 
 const clojureCodeExample = generateCode(
-    { url: "http://example.com", method: "POST" },
-    CodeTarget.Clojure
+  { url: "http://example.com", method: "POST" },
+  CodeTarget.Clojure
 );
 ```
 
