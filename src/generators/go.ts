@@ -1,57 +1,53 @@
-import { RequestOptions } from "../main";
+import { RequestOptions } from "../request";
 
-export async function generateGoCode(options: RequestOptions): Promise<string> {
-    let goCode = `package main
+export function generateGoCode(options: RequestOptions): string {
+    let code = `package main
 
 import (
     "bytes"
     "fmt"
-    "io/ioutil"
     "net/http"
+    "net/url"
 )
 
 func main() {
-    `
-    const method = options.method ? options.method.toUpperCase() : "GET";
+    url := "${options.url}"
+    method := "${options.method || 'GET'}"
 
-    if (options.body) {
-        goCode += `requestData := []byte(\`${options.body}\`)
-    req, err := http.NewRequest("${method}", "${options.url}", bytes.NewBuffer(requestData))
-    `;
+    client := &http.Client {
+    }
+    var req *http.Request
+    var err error
+
+    if method == "POST" || method == "PUT" {
+        var jsonStr = []byte(\`${options.body || ''}\`)
+        req, err = http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
     } else {
-        goCode += `req, err = http.NewRequest("${method}", "${options.url}", nil)
-    `;
+        req, err = http.NewRequest(method, url, nil)
     }
 
-    if (options.headers) {
-        goCode += `    
-    `;
-        for (const key in options.headers) {
-            goCode += `req.Header.Set("${key}", "${options.headers[key]}")
-    `;
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+    ${options.headers ? Object.entries(options.headers).map(([key, value]) => `req.Header.Add("${key}", "${value}")`).join('\n    ') : ''}
+
+    ${options.query ? `params := url.Values{}\n    ` + Object.entries(options.query).map(([key, value]) => {
+        if (Array.isArray(value)) {
+            return value.map(v => `params.Add("${key}", "${v}")`).join('\n    ')
+        } else {
+            return `params.Add("${key}", "${value}")`
         }
-    }
+    }).join('\n    ') + '\n    req.URL.RawQuery = params.Encode()' : ''}
 
-    goCode += `
+    res, err := client.Do(req)
     if err != nil {
-        fmt.Println("Error creating request:", err)
+        fmt.Println(err)
         return
     }
-
-    client := &http.Client{}
-    resp, err := client.Do(req)
-    if err != nil {
-        fmt.Println("Error sending request:", err)
-        return
-    }
-    defer resp.Body.Close()
-
-    body, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        fmt.Println("Error reading response body:", err)
-        return
-    }
-}`;
-
-    return goCode;
+    defer res.Body.Close()
+}
+`
+    return code;
 }
