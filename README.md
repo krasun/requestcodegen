@@ -1,14 +1,14 @@
-# requestcode
+# requestcodegen
 
-[![Build](https://github.com/krasun/requestcode/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/krasun/requestcode/actions/workflows/build.yml)
-[![NPM package](https://img.shields.io/npm/v/requestcode.svg?branch=main)](https://www.npmjs.com/package/requestcode)
+[![Build](https://github.com/krasun/requestcodegen/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/krasun/requestcode/actions/workflows/build.yml)
+[![NPM package](https://img.shields.io/npm/v/requestcodegen.svg?branch=main)](https://www.npmjs.com/package/requestcodegen)
 
-`requestcode` is a library to generate HTTP client example code in different programming languages.
+`requestcodegen` is a library to generate HTTP client example code in different programming languages.
 
 ## Install
 
 ```shell
-npm install requestcode --save
+npm install requestcodegen --save
 ```
 
 ## Use
@@ -16,7 +16,7 @@ npm install requestcode --save
 Using the library is as easy as:
 
 ```typescript
-import { generateCode } from "requestcode";
+import { generateCode } from "requestcodegen";
 
 const clojureCodeExample = generateCode(
     { url: "http://example.com", method: "POST" },
@@ -48,4 +48,4 @@ If you use the library, please, don't hesitate to share how and in what project.
 
 ## License
 
-`krasun/requestcode` is released under [the MIT license](LICENSE).
+`krasun/requestcodegen` is released under [the MIT license](LICENSE).
