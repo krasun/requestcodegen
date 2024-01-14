@@ -1,15 +1,15 @@
 {
-  "name": "requestcode",
+  "name": "requestcodegen",
   "version": "0.0.1",
   "description": "A library to generate HTTP client example code in different programming languages.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/krasun/requestcode.git"
+    "url": "git+https://github.com/krasun/requestcodegen.git"
   },
   "author": "Dmytro Krasun",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/krasun/requestcode/issues"
+    "url": "https://github.com/krasun/requestcodegen/issues"
   },
   "main": "dist/generator.js",
   "types": "dist/@types/generator.d.ts",
