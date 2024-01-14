@@ -23,6 +23,9 @@ import { generateWgetCode } from "./generators/wget";
 import { RequestOptions } from "./request";
 import { CodeTarget } from "./target";
 
+export * from "./target";
+export * from "./request";
+
 export function generateCode(
     request: RequestOptions,
     target: CodeTarget

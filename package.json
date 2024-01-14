@@ -1,6 +1,6 @@
 {
   "name": "requestcodegen",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A library to generate HTTP client example code in different programming languages.",
   "repository": {
     "type": "git",
