@@ -38,6 +38,10 @@ To build and publish the library:
 OPENAI_MODEL=<model> OPENAI_BASE_URL="<OpenAI API base URL>" OPENAI_API_KEY="OpenAI API key" npm run generate src/generators
 ```
 
+## Code Examples
+
+Check out examples of generated code in the [examples.md](examples.md) file.
+
 # Known usages
 
 A few examples of how the library is used:

@@ -25,6 +25,7 @@
   "scripts": {
     "test": "jest",
     "generate": "ts-node ./src/scripts/generate.ts",
+    "examples": "ts-node ./src/scripts/examples.ts ./examples.md",
     "build": "./node_modules/typescript/bin/tsc",
     "prepare": "npm run build"
   }
