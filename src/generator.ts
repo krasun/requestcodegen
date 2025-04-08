@@ -20,7 +20,7 @@ import { generateRubyCode } from "./generators/ruby";
 import { generateRustCode } from "./generators/rust";
 import { generateSwiftCode } from "./generators/swift";
 import { generateWgetCode } from "./generators/wget";
-import { RequestOptions } from "./request";
+import { JsonBody, RequestOptions } from "./request";
 import { CodeTarget } from "./target";
 
 export * from "./target";
@@ -30,6 +30,17 @@ export function generateCode(
     request: RequestOptions,
     target: CodeTarget
 ): string {
+    if (request.body instanceof JsonBody) {
+        if (request.headers) {
+            const contentType =
+                request.headers["Content-Type"] ||
+                request.headers["content-type"];
+            if (!contentType || !contentType.includes("application/json")) {
+                request.headers["Content-Type"] = "application/json";
+            }
+        }
+    }
+
     switch (target) {
         case CodeTarget.Clojure:
             return generateClojureCode(request);

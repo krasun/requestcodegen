@@ -10,4 +10,6 @@ All code generators should follow the next rules:
 1. They don't produce code with comments.
 2. They should generate idiomatic code for their target lanuage. 
 3. The should not try to extract data from response, but in the code example, the response variable should be the last one. 
-4. They should generate compact and elegant code. 
+4. They should generate compact and elegant code. But with new lines, no need to pack everything in one line.
+5. If the options body is a JSON body, it should be a dictionary object formatted properly and be ready to accept big JSON. Put properties on new line each.
+6. And the same for query parameters (as for JSON): it should be a dictionary object formatted properly and be ready to accept many parameters and some of them can be an array even, put them on new line each.

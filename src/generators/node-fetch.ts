@@ -1,28 +1,26 @@
-import { RequestOptions } from "../request";
+import { RequestOptions, JsonBody } from "../request";
 
 export function generateNodeFetchCode(options: RequestOptions): string {
-    let code = `const fetch = require('node-fetch');
-const querystring = require('querystring');
+    const queryParams = options.query ? `\n    ${JSON.stringify(options.query, null, 4).replace(/^{/, '').replace(/}$/, '').trim()}\n` : '';
+    const bodyContent = options.body instanceof JsonBody ? 
+        `\n    ${JSON.stringify(options.body.body, null, 4).replace(/^{/, '').replace(/}$/, '').trim()}\n` : 
+        options.body;
 
-fetch('${options.url}${
-        options.query
-            ? "?' + querystring.stringify(" +
-              JSON.stringify(options.query) +
-              ")"
-            : "'"
-    }, {
-    method: '${options.method || "GET"}',
-    headers: ${JSON.stringify(options.headers || {})},
-    body: '${options.body || ""}'
-})
-.then(response => {
-    if (!response.ok) {
-        throw new Error('Network response was not ok');
-    }
-})
-.catch(error => {
-    console.error('There has been a problem with your fetch operation:', error);
-});`;
+    const code = `const fetch = require('node-fetch');
+
+const params = {${queryParams}};
+const url = '${options.url}' + (Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '');
+
+const options = {
+    method: '${options.method || "GET"}'${options.headers ? `,
+    headers: {
+        ${Object.entries(options.headers).map(([key, value]) => `'${key}': '${value}'`).join(',\n        ')}
+    }` : ''}${bodyContent ? `,
+    body: ${options.body instanceof JsonBody ? `{${bodyContent}}` : `'${bodyContent}'`}` : ''}
+};
+
+const response = await fetch(url, options);
+const data = await response.json();`;
 
     return code;
 }

@@ -1,27 +1,40 @@
 import { RequestOptions } from "../request";
 
 export function generateNodeAxiosCode(options: RequestOptions): string {
-    const { url, query, method = 'GET', headers, body } = options;
-
-    let axiosOptions = `{ method: '${method}', url: '${url}'`;
-    if (query) {
-        axiosOptions += `, params: ${JSON.stringify(query)}`;
+    function formatObject(obj: any): string {
+        if (!obj) return '';
+        const entries = Object.entries(obj);
+        if (entries.length === 0) return '{}';
+        
+        return `{\n${entries.map(([key, value]) => `    ${JSON.stringify(key)}: ${JSON.stringify(value)}`).join(',\n')}\n}`;
     }
-    if (headers) {
-        axiosOptions += `, headers: ${JSON.stringify(headers)}`;
-    }
-    if (body) {
-        axiosOptions += `, data: ${body}`;
-    }
-    axiosOptions += ' }';
 
-    const code = `const axios = require('axios');\n\n` +
-                 `axios(${axiosOptions})\n` +
-                 `.then(function (response) {\n` +
-                 `    // do something with the response...\n` +
-                 `}).catch(function (error) {\n` +
-                 `    console.error(error);\n` +
-                 `});`;
+    function formatRequestOptions(): string {
+        const opts = [`    method: '${options.method || 'GET'}'`, `    url: '${options.url}'`];
 
-    return code;
+        if (options.query) {
+            opts.push(`    params: ${formatObject(options.query)}`);
+        }
+
+        if (options.headers) {
+            opts.push(`    headers: ${formatObject(options.headers)}`);
+        }
+
+        if (options.body) {
+            const bodyData = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+            opts.push(`    data: ${formatObject(bodyData)}`);
+        }
+
+        return opts.join(',\n');
+    }
+
+    return `const axios = require('axios');
+
+axios({
+${formatRequestOptions()}
+})
+.then(response => response)
+.catch(error => {
+    throw error;
+});`;
 }

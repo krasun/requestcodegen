@@ -8,7 +8,7 @@ describe('generateWgetCode', () => {
             url: 'http://example.com',
         };
         const result = generateWgetCode(options);
-        expect(result).toBe('wget \'http://example.com\'');
+        expect(result).toBe('wget \\\n  \'http://example.com\'');
     });
 
     test('should generate wget command for POST method', () => {
@@ -18,7 +18,7 @@ describe('generateWgetCode', () => {
             url: 'http://example.com',
         };
         const result = generateWgetCode(options);
-        expect(result).toBe('wget --post-data \'testBody\' \'http://example.com\'');
+        expect(result).toBe('wget --post-data \'testBody\' \\\n  \'http://example.com\'');
     });
 
     test('should generate wget command with headers', () => {
@@ -31,7 +31,7 @@ describe('generateWgetCode', () => {
             url: 'http://example.com',
         };
         const result = generateWgetCode(options);
-        expect(result).toBe('wget --header \'Content-Type: application/json\' --header \'Authorization: Bearer token\' \'http://example.com\'');
+        expect(result).toBe('wget \\\n  --header \'Content-Type: application/json\' \\\n  --header \'Authorization: Bearer token\' \\\n  \'http://example.com\'');
     });
 
     test('should generate wget command with query parameters', () => {
@@ -44,7 +44,7 @@ describe('generateWgetCode', () => {
             url: 'http://example.com',
         };
         const result = generateWgetCode(options);
-        expect(result).toBe('wget \'http://example.com?key1=value1&key2=value2\'');
+        expect(result).toBe('wget \\\n  \'http://example.com?key1=value1&key2=value2\'');
     });
 
     test('should generate wget command with all options', () => {
@@ -62,6 +62,6 @@ describe('generateWgetCode', () => {
             url: 'http://example.com',
         };
         const result = generateWgetCode(options);
-        expect(result).toBe('wget --post-data \'testBody\' --header \'Content-Type: application/json\' --header \'Authorization: Bearer token\' \'http://example.com?key1=value1&key2=value2\'');
+        expect(result).toBe('wget --post-data \'testBody\' \\\n  --header \'Content-Type: application/json\' \\\n  --header \'Authorization: Bearer token\' \\\n  \'http://example.com?key1=value1&key2=value2\'');
     });
 });

@@ -1,89 +1,139 @@
-import { describe, expect, test } from "@jest/globals";
 import { generatePHPGuzzleCode } from "./php-guzzle";
-import { generateComparableCode } from "../code";
+import { JsonBody } from "../request";
 
 describe("generatePHPGuzzleCode", () => {
-    test("should generate code with GET method and no headers, query or body", () => {
-        const options = {
+    test("generates code for GET request", () => {
+        const code = generatePHPGuzzleCode({
             method: "GET",
-            url: "https://example.com",
-        };
-        const result = generatePHPGuzzleCode(options);
-        expect(generateComparableCode(result)).toContain(
-            generateComparableCode(
-                `$client->request('GET', 'https://example.com', []);`
-            )
-        );
+            url: "https://api.example.com/users",
+        });
+        expect(code).toBe(`<?php
+
+require 'vendor/autoload.php';
+
+$client = new \\GuzzleHttp\\Client();
+
+$requestOptions = [];
+
+try {
+    $response = $client->request('GET', 'https://api.example.com/users', $requestOptions);
+} catch (\\GuzzleHttp\\Exception\\RequestException $e) {
+    $error = $e->getMessage();
+}`);
     });
 
-    test("should generate code with POST method and headers", () => {
-        const options = {
+    test("generates code for POST request with JSON body", () => {
+        const code = generatePHPGuzzleCode({
             method: "POST",
-            url: "https://example.com",
-            headers: {
-                "Content-Type": "application/json",
-            },
-        };
-        const result = generatePHPGuzzleCode(options);
-        expect(generateComparableCode(result)).toContain(
-            generateComparableCode(
-                `'headers' => ['Content-Type' => 'application/json',],`
-            )
-        );
+            url: "https://api.example.com/users",
+            body: new JsonBody({ name: "John", age: 30 }),
+        });
+        expect(code).toBe(`<?php
+
+require 'vendor/autoload.php';
+
+$client = new \\GuzzleHttp\\Client();
+
+$requestOptions = [];
+
+$requestOptions['json'] = [
+    'name' => "John",
+    'age' => 30,
+];
+
+try {
+    $response = $client->request('POST', 'https://api.example.com/users', $requestOptions);
+} catch (\\GuzzleHttp\\Exception\\RequestException $e) {
+    $error = $e->getMessage();
+}`);
     });
 
-    test("should generate code with PUT method, headers and query", () => {
-        const options = {
+    test("generates code for PUT request with headers", () => {
+        const code = generatePHPGuzzleCode({
             method: "PUT",
-            url: "https://example.com",
+            url: "https://api.example.com/users/1",
             headers: {
                 "Content-Type": "application/json",
+                "Authorization": "Bearer token123",
             },
-            query: {
-                id: "123",
-            },
-        };
-        const result = generatePHPGuzzleCode(options);
-        expect(generateComparableCode(result)).toContain(
-            generateComparableCode(`'query' => ['id' => '123',],`)
-        );        
+            body: new JsonBody({ name: "Updated John" }),
+        });
+        expect(code).toBe(`<?php
+
+require 'vendor/autoload.php';
+
+$client = new \\GuzzleHttp\\Client();
+
+$requestOptions = [];
+
+$requestOptions['headers'] = [
+    'Content-Type' => 'application/json',
+    'Authorization' => 'Bearer token123',
+];
+
+$requestOptions['json'] = [
+    'name' => "Updated John",
+];
+
+try {
+    $response = $client->request('PUT', 'https://api.example.com/users/1', $requestOptions);
+} catch (\\GuzzleHttp\\Exception\\RequestException $e) {
+    $error = $e->getMessage();
+}`);
     });
 
-    test("should generate code with DELETE method, headers, query and body", () => {
-        const options = {
+    test("generates code for DELETE request", () => {
+        const code = generatePHPGuzzleCode({
             method: "DELETE",
-            url: "https://example.com",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            query: {
-                id: "123",
-            },
-            body: '{"name":"John"}',
-        };
-        const result = generatePHPGuzzleCode(options);
-        expect(generateComparableCode(result)).toContain(
-            generateComparableCode(`'body' => '{"name":"John"}',`)
-        );
+            url: "https://api.example.com/users/1",
+        });
+        expect(code).toBe(`<?php
+
+require 'vendor/autoload.php';
+
+$client = new \\GuzzleHttp\\Client();
+
+$requestOptions = [];
+
+try {
+    $response = $client->request('DELETE', 'https://api.example.com/users/1', $requestOptions);
+} catch (\\GuzzleHttp\\Exception\\RequestException $e) {
+    $error = $e->getMessage();
+}`);
     });
 
-    test("should generate code with PATCH method, headers, query and body", () => {
-        const options = {
+    test("generates code for PATCH request with query parameters", () => {
+        const code = generatePHPGuzzleCode({
             method: "PATCH",
-            url: "https://example.com",
-            headers: {
-                "Content-Type": "application/json",
-            },
+            url: "https://api.example.com/users/1",
             query: {
-                id: "123",
+                version: "2",
+                fields: ["name", "email"],
             },
-            body: '{"name":"John"}',
-        };
-        const result = generatePHPGuzzleCode(options);
-        expect(generateComparableCode(result)).toContain(
-            generateComparableCode(
-                `$client->request('PATCH', 'https://example.com',`
-            )
-        );
+            body: new JsonBody({ status: "inactive" }),
+        });
+        expect(code).toBe(`<?php
+
+require 'vendor/autoload.php';
+
+$client = new \\GuzzleHttp\\Client();
+
+$requestOptions = [];
+
+$requestOptions['query'] = [
+    'version' => '2',
+    'fields[]' => 'name',
+    'fields[]' => 'email',
+];
+
+$requestOptions['json'] = [
+    'status' => "inactive",
+];
+
+try {
+    $response = $client->request('PATCH', 'https://api.example.com/users/1', $requestOptions);
+} catch (\\GuzzleHttp\\Exception\\RequestException $e) {
+    $error = $e->getMessage();
+}`);
     });
 });

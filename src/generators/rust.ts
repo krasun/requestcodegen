@@ -1,47 +1,87 @@
 import { RequestOptions } from "../request";
 
 export function generateRustCode(options: RequestOptions): string {
-    let code = `use std::collections::HashMap;
-use reqwest::{Client, Method, Url, header};
+    let code = `use reqwest::{Client, Method};
+use serde_json::Value;
 
-pub async fn make_request() -> Result<(), reqwest::Error> {
+pub async fn make_request() -> Result<reqwest::Response, reqwest::Error> {
     let client = Client::new();
-    let mut url = Url::parse("${options.url}").unwrap();`;
+    let mut url = "${options.url}".parse()?;`;
 
     if (options.query) {
-        code += `\n    let mut params = HashMap::new();`;
-        for (const key in options.query) {
-            if (Array.isArray(options.query[key])) {
-                (options.query[key] as string[]).forEach((value: string) => {
-                    code += `\n    params.insert("${key}", "${value}");`;
-                });
-            } else {
-                code += `\n    params.insert("${key}", "${options.query[key]}");`;
-            }
-        }
-        code += `\n    url.query_pairs_mut().extend_pairs(params.into_iter());`;
+        const queryStr = JSON.stringify(options.query, null, 4)
+            .split('\n')
+            .map(line => '    ' + line)
+            .join('\n');
+            
+        code += `
+    let query_params: Value = serde_json::json!(
+${queryStr}
+    );
+    if let Value::Object(params) = query_params {
+        let query_string = params.iter()
+            .flat_map(|(k, v)| match v {
+                Value::Array(arr) => arr.iter()
+                    .map(|x| (k.clone(), x.to_string()))
+                    .collect::<Vec<_>>(),
+                _ => vec![(k.clone(), v.to_string())]
+            })
+            .collect::<Vec<_>>();
+        url.query_pairs_mut().extend_pairs(query_string);
+    }`;
     }
 
-    if (options.method) {
-        code += `\n    let method = Method::from_bytes(b"${options.method}").unwrap();`;
-    } else {
-        code += `\n    let method = Method::GET;`;
-    }
+    code += `
+    let request = client.request(Method::${options.method || 'GET'}, url)`;
 
     if (options.headers) {
-        code += `\n    let mut headers = header::HeaderMap::new();`;
-        for (const key in options.headers) {
-            code += `\n    headers.insert("${key}", "${options.headers[key]}".parse().unwrap());`;
+        const headersStr = JSON.stringify(options.headers, null, 4)
+            .split('\n')
+            .map(line => '        ' + line)
+            .join('\n');
+            
+        code += `
+        .headers(
+${headersStr}
+            .into())`;
+    }
+
+    if (options.body) {
+        if (typeof options.body === 'string') {
+            try {
+                const parsedBody = JSON.parse(options.body);
+                const bodyStr = JSON.stringify(parsedBody, null, 4)
+                    .split('\n')
+                    .map(line => '        ' + line)
+                    .join('\n');
+                    
+                code += `
+        .json(&serde_json::json!(
+${bodyStr}
+        ))`;
+            } catch {
+                code += `
+        .body("${options.body}")`;
+            }
+        } else {
+            const bodyStr = JSON.stringify(options.body, null, 4)
+                .split('\n')
+                .map(line => '        ' + line)
+                .join('\n');
+                
+            code += `
+        .json(&serde_json::json!(
+${bodyStr}
+        ))`;
         }
     }
 
-    code += `\n    let request = client.request(method, url);`;
-
-    if (options.body) {
-        code += `\n    request.body("${options.body}");`;
-    }
-
-    code += `\n    let response = request.send().await?;\n    Ok(())\n}`;
+    code += `
+        .send()
+        .await?;
+    Ok(response)
+}`;
 
     return code;
 }
+

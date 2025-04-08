@@ -1,7 +1,7 @@
 import { writeFile } from "fs/promises";
 import { CodeTarget } from "../target";
 
-import { generateCode, RequestOptions } from "../generator";
+import { generateCode, JsonBody, RequestOptions } from "../generator";
 
 async function main() {
     const [outputPath] = process.argv.slice(2);
@@ -18,12 +18,13 @@ async function main() {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ name: "John Doe" }),
+            body: new JsonBody({ name: "John Doe", baz: ["qux", "quix"] }),
         },
         get: {
             url: "http://example.com",
             method: "GET",
             query: {
+                baz: ["qux", "quix"],
                 foo: "bar",
             },
         },

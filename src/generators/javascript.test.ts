@@ -11,14 +11,21 @@ describe("generateJavaScriptCode", () => {
             body: JSON.stringify({ key: "value" }),
         };
 
-        const expectedCode = `fetch('https://example.com?param1=value1&param2=value2', {
-method: 'POST',
-headers: {
-'Content-Type': 'application/json'
-},
-body: '{"key":"value"}',
-})
-.catch(error => console.error('Error:', error));`;
+        const expectedCode = `const params = new URLSearchParams({
+  param1: 'value1',
+  param2: 'value2'
+});
+
+const requestOptions = {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: '{"key":"value"}',
+};
+
+const response = await fetch('https://example.com' + '?' + params.toString(), requestOptions);
+`;
 
         expect(generateJavaScriptCode(options)).toBe(expectedCode);
     });
@@ -28,25 +35,38 @@ body: '{"key":"value"}',
             url: "https://example.com",
         };
 
-        const expectedCode = `fetch('https://example.com', {
-})
-.catch(error => console.error('Error:', error));`;
+        const expectedCode = `const params = new URLSearchParams({
+});
+
+const requestOptions = {
+};
+
+const response = await fetch('https://example.com' + '?' + params.toString(), requestOptions);
+`;
 
         expect(generateJavaScriptCode(options)).toBe(expectedCode);
     });
 
-    test("should generate correct code with url and headers", () => {
+    test("should generate correct code with url and array query params", () => {
         const options = {
             url: "https://example.com",
+            query: { tags: ["tag1", "tag2"] },
             headers: { "Content-Type": "application/json" },
         };
 
-        const expectedCode = `fetch('https://example.com', {
-headers: {
-'Content-Type': 'application/json'
-},
-})
-.catch(error => console.error('Error:', error));`;
+        const expectedCode = `const params = new URLSearchParams({
+  tags: 'tag1',
+  tags: 'tag2'
+});
+
+const requestOptions = {
+  headers: {
+    'Content-Type': 'application/json'
+  },
+};
+
+const response = await fetch('https://example.com' + '?' + params.toString(), requestOptions);
+`;
 
         expect(generateJavaScriptCode(options)).toBe(expectedCode);
     });

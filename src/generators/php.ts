@@ -1,44 +1,49 @@
-import { RequestOptions } from "../request";
+import { RequestOptions, JsonBody } from "../request";
 
 export function generatePHPCode(options: RequestOptions): string {
-    let code = `<?php\n\n`;
+    let code = `<?php
 
-    if (options.method) {
-        code += `$method = '${options.method}';\n`;
-    } else {
-        code += `$method = 'GET';\n`;
-    }
-
-    if (options.url) {
-        code += `$url = '${options.url}';\n`;
-    }
+$method = '${options.method || 'GET'}';
+$url = '${options.url}';\n`;
 
     if (options.query) {
-        code += `$query = http_build_query(${JSON.stringify(options.query)});\n`;
-        code += `$url .= '?' . $query;\n`;
+        code += `$query = [\n`;
+        for (const [key, value] of Object.entries(options.query)) {
+            code += `    '${key}' => ${JSON.stringify(value)},\n`;
+        }
+        code += `];\n`;
+        code += `$url .= '?' . http_build_query($query);\n`;
     }
 
-    code += `$options = [\n`;
+    code += `\n$options = [\n`;
     code += `    'http' => [\n`;
     code += `        'method' => $method,\n`;
 
     if (options.headers) {
-        code += `        'header' => ${JSON.stringify(options.headers).replace(/,/g, ',\n')},\n`;
+        code += `        'header' => [\n`;
+        for (const [key, value] of Object.entries(options.headers)) {
+            code += `            '${key}: ${value}',\n`;
+        }
+        code += `        ],\n`;
     }
 
     if (options.body) {
-        code += `        'content' => '${options.body}',\n`;
+        if (options.body instanceof JsonBody) {
+            code += `        'content' => json_encode([\n`;
+            for (const [key, value] of Object.entries(options.body.body)) {
+                code += `            '${key}' => ${JSON.stringify(value)},\n`;
+            }
+            code += `        ]),\n`;
+        } else {
+            code += `        'content' => '${options.body}',\n`;
+        }
     }
 
     code += `    ],\n`;
     code += `];\n\n`;
 
-    code += `$context = stream_context_create($options);\n`;
-    code += `$result = file_get_contents($url, false, $context);\n\n`;
-
-    code += `if ($result === FALSE) { /* Handle error */ }\n\n`;
-
-    code += `?>`;
+    code += `$context = stream_context_create($options);
+$response = file_get_contents($url, false, $context);`;
 
     return code;
 }

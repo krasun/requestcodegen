@@ -1,38 +1,48 @@
-import { RequestOptions } from "../request";
+import { JsonBody, RequestOptions } from "../request";
 
 export function generateJavaScriptCode(options: RequestOptions): string {
-    let code = `fetch('${options.url}`;
-
+    let code = 'const params = new URLSearchParams({\n';
+    
     if (options.query) {
-        const query = Object.entries(options.query)
-            .map(
-                ([key, value]) =>
-                    `${key}=${encodeURIComponent(value as string)}`
-            )
-            .join("&");
-        code += `?${query}'`;
+        code += Object.entries(options.query)
+            .map(([key, value]) => {
+                if (Array.isArray(value)) {
+                    return value.map(v => `  ${key}: '${v}'`).join(',\n');
+                }
+                return `  ${key}: '${value}'`;
+            })
+            .join(',\n');
+        code += '\n});\n\n';
     } else {
-        code += `'`;
+        code += '});\n\n';
     }
 
-    code += ", {\n";
-
+    code += `const requestOptions = {`;
+    
     if (options.method) {
-        code += `method: '${options.method}',\n`;
+        code += `\n  method: '${options.method}',`;
     }
 
     if (options.headers) {
-        const headers = Object.entries(options.headers)
-            .map(([key, value]) => `'${key}': '${value}'`)
-            .join(",\n");
-        code += `headers: {\n${headers}\n},\n`;
+        code += '\n  headers: {\n';
+        code += Object.entries(options.headers)
+            .map(([key, value]) => `    '${key}': '${value}'`)
+            .join(',\n');
+        code += '\n  },';
     }
 
     if (options.body) {
-        code += `body: '${options.body}',\n`;
+        if (options.body instanceof JsonBody) { 
+            code += '\n  body: ' + JSON.stringify(options.body.body, null, 4).replace(/^/gm, '  ') + ',';
+        } else {            
+            // If not JSON, use as is
+            code += `\n  body: '${options.body}',`;
+        }
     }
 
-    code += "})\n.catch(error => console.error('Error:', error));";
+    code += '\n};\n\n';
+
+    code += `const response = await fetch('${options.url}' + '?' + params.toString(), requestOptions);\n`;
 
     return code;
 }

@@ -1,17 +1,22 @@
-import { RequestOptions } from "../request";
+import { RequestOptions, JsonBody } from "../request";
 
-function jsonToClojure(jsonStr: string): string {
-    try {
-        const obj = JSON.parse(jsonStr);
-        return JSON.stringify(obj)
-            .replace(/:/g, " ") 
-            .replace(/,/g, "") 
-            .replace(/"\s*{/g, "{") 
-            .replace(/}"/g, "}") 
-            .replace(/"([^"]+)"\s+"([^"]+)"/g, '"$1" "$2"'); 
-    } catch (e) {
-        return `"${jsonStr}"`;
+function formatClojureMap(obj: any): string {
+    if (typeof obj !== 'object' || obj === null) {
+        return `"${obj}"`;
     }
+
+    const entries = Object.entries(obj).map(([k, v]) => {
+        if (Array.isArray(v)) {
+            const items = v.map(item => formatClojureMap(item)).join(" ");
+            return `"${k}" [${items}]`;
+        }
+        if (typeof v === 'object' && v !== null) {
+            return `"${k}" ${formatClojureMap(v)}`;
+        }
+        return `"${k}" "${v}"`;
+    });
+
+    return `{${entries.join("\n              ")}}`;
 }
 
 export function generateClojureCode(options: RequestOptions): string {
@@ -19,32 +24,29 @@ export function generateClojureCode(options: RequestOptions): string {
   (:require [clj-http.client :as client]))
 
 (defn make-request []
-  (let [options {:url "${options.url}"`;
+  (client/request
+    {`;
+
+    code += `\n     :url "${options.url}"`;
 
     if (options.query) {
-        const queryStr = JSON.stringify(options.query)
-            .replace(/:\s*/g, ":")
-            .replace(/,\s*/g, ",");
-        code += `\n         :query ${queryStr}`;
+        code += `\n     :query-params ${formatClojureMap(options.query)}`;
     }
 
     if (options.method) {
-        code += `\n         :method :${options.method.toLowerCase()}`;
+        code += `\n     :method :${options.method.toLowerCase()}`;
     }
 
     if (options.headers) {
-        const headersStr = JSON.stringify(options.headers)
-            .replace(/:\s*/g, ":")
-            .replace(/,\s*/g, ",");
-        code += `\n         :headers ${headersStr}`;
+        code += `\n     :headers ${formatClojureMap(options.headers)}`;
     }
 
     if (options.body) {
-        code += `\n         :body ${jsonToClojure(options.body)}`;
+        const body = options.body instanceof JsonBody ? options.body.body : options.body;
+        code += `\n     :body ${formatClojureMap(body)}`;
     }
 
-    code += `}]\n    (let [response (client/request options)]
-      response)))`;
+    code += `}))\n`;
 
     return code;
 }

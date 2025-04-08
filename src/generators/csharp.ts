@@ -1,4 +1,4 @@
-import { RequestOptions } from "../request";
+import { JsonBody, RequestOptions } from "../request";
 
 export function generateCSharpCode(options: RequestOptions): string {
     // Remove content-type from headers if it's JSON since it will be set by StringContent
@@ -26,8 +26,8 @@ export function generateCSharpCode(options: RequestOptions): string {
                 indent * 4
             )}${items}\n${" ".repeat((indent - 1) * 4)}}`;
         }
-        if (typeof obj === "object") {
-            const entries = Object.entries(obj);
+        if (obj instanceof JsonBody) {
+            const entries = Object.entries(obj.body);
             if (entries.length === 0) return "new {}";
             const props = entries
                 .map(
@@ -53,7 +53,7 @@ public class Program {
         ${
             isJsonContent && options.body
                 ? `var requestData = ${toCSharpObject(
-                      JSON.parse(options.body)
+                      options.body
                   )};\n\n        `
                 : ""
         }var request = new HttpRequestMessage {

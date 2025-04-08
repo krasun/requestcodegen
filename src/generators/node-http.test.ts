@@ -1,6 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
 import { generateNodeHTTPCode } from "./node-http";
 import { generateComparableCode } from "../code";
+import { JsonBody } from "../request";
 
 describe("generateNodeHTTPCode", () => {
     test("should generate correct code with GET method and no query", () => {
@@ -9,7 +10,6 @@ describe("generateNodeHTTPCode", () => {
             method: "GET",
         };
         const expectedCode = `const http = require('http');
-const querystring = require('querystring');
 
 const options = {
     hostname: 'localhost',
@@ -19,9 +19,11 @@ const options = {
     headers: {}
 };
 
+let response = '';
 const req = http.request(options, (res) => {
-    res.on('data', (chunk) => {});
-    res.on('end', () => {});
+    res.on('data', (chunk) => {
+        response += chunk;
+    });
 });
 
 req.on('error', (error) => {
@@ -34,59 +36,71 @@ req.end();`;
         );
     });
 
-    test("should generate correct code with POST method and query", () => {
+    test("should generate correct code with POST method and query parameters", () => {
         const options = {
             url: "http://localhost/test",
             method: "POST",
-            query: { key: "value" },
-            body: "body",
+            query: { key: "value", array: ["item1", "item2"] },
+            body: new JsonBody({ data: "example" }),
         };
         const expectedCode = `const http = require('http');
 const querystring = require('querystring');
 
+const query = {
+    key: "value",
+    array: ["item1","item2"]
+};
+
+const body = {
+    data: "example"
+};
+
 const options = {
     hostname: 'localhost',
     port: 80,
-    path: '/test?key=value',
+    path: '/test'+'?'+querystring.stringify(query),
     method: 'POST',
     headers: {}
 };
 
+let response = '';
 const req = http.request(options, (res) => {
-    res.on('data', (chunk) => {});
-    res.on('end', () => {});
+    res.on('data', (chunk) => {
+        response += chunk;
+    });
 });
 
 req.on('error', (error) => {
     console.error(error);
 });
 
-req.write('body');
+req.write(JSON.stringify(body));
 req.end();`;
         expect(generateComparableCode(generateNodeHTTPCode(options))).toBe(
             generateComparableCode(expectedCode)
         );
     });
 
-    test("should generate correct code with headers", () => {
+    test("should generate correct code with HTTPS", () => {
         const options = {
-            url: "http://localhost/test",
+            url: "https://api.example.com/test",
             headers: { "Content-Type": "application/json" },
         };
-        const expectedCode = `const http = require('http');
-const querystring = require('querystring');
+        const expectedCode = `const https = require('https');
 
 const options = {
-    hostname: 'localhost',
-    port: 80,
+    hostname: 'api.example.com',
+    port: 443,
     path: '/test',
     method: 'GET',
     headers: {"Content-Type":"application/json"}
 };
 
-const req = http.request(options, (res) => {
-    res.on('data', (chunk) => {});
-    res.on('end', () => {});
+let response = '';
+const req = https.request(options, (res) => {
+    res.on('data', (chunk) => {
+        response += chunk;
+    });
 });
 
 req.on('error', (error) => {
@@ -99,62 +113,37 @@ req.end();`;
         );
     });
 
-    test("should generate correct code with port", () => {
+    test("should generate correct code with non-JSON body", () => {
         const options = {
-            url: "http://localhost:3000/test",
+            url: "http://localhost/test",
+            method: "POST",
+            body: "raw body content",
         };
         const expectedCode = `const http = require('http');
-const querystring = require('querystring');
 
-const options = {
-    hostname: 'localhost',
-    port: 3000,
-    path: '/test',
-    method: 'GET',
-    headers: {}
-};
-
-const req = http.request(options, (res) => {
-    res.on('data', (chunk) => {});
-    res.on('end', () => {});
-});
-
-req.on('error', (error) => {
-    console.error(error);
-});
-
-req.end();`;
-        expect(generateComparableCode(generateNodeHTTPCode(options))).toBe(
-            generateComparableCode(expectedCode)
-        );
-    });
-
-    test("should generate correct code with https", () => {
-        const options = {
-            url: "https://localhost/test",
-        };
-        const expectedCode = `const http = require('http');
-const querystring = require('querystring');
+const body = "raw body content";
 
 const options = {
     hostname: 'localhost',
     port: 80,
     path: '/test',
-    method: 'GET',
+    method: 'POST',
     headers: {}
 };
 
+let response = '';
 const req = http.request(options, (res) => {
-    res.on('data', (chunk) => {});
-    res.on('end', () => {});
+    res.on('data', (chunk) => {
+        response += chunk;
+    });
 });
 
 req.on('error', (error) => {
     console.error(error);
 });
 
+req.write(body);
 req.end();`;
-
         expect(generateComparableCode(generateNodeHTTPCode(options))).toBe(
             generateComparableCode(expectedCode)
         );

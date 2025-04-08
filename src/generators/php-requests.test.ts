@@ -1,6 +1,6 @@
 import { describe, expect, test } from "@jest/globals";
 import { generatePHPRequestsCode } from "./php-requests";
-import { writeFile } from "fs";
+import { JsonBody } from "../request";
 
 describe("generatePHPRequestsCode", () => {
     test("should generate correct PHP code with GET method", () => {
@@ -9,19 +9,20 @@ describe("generatePHPRequestsCode", () => {
             url: "https://example.com",
             headers: { "Content-Type": "application/json" },
             query: { key: "value" },
-            body: "",
         };
         const result = generatePHPRequestsCode(options);
         expect(result).toContain(`$method = 'GET';`);
         expect(result).toContain(`$url = 'https://example.com';`);
-        expect(result).toContain(
-            `$headers = {"Content-Type":"application/json"};`
-        );
-        expect(result).toContain(`$query = {"key":"value"};`);
-        expect(result).toContain(`$body = "";`);
+        expect(result).toContain(`$headers = [
+    'Content-Type' => 'application/json'
+]`);
+        expect(result).toContain(`$query = [
+    'key' => 'value'
+]`);
+        expect(result).toContain(`$body = [];`);
     });
 
-    test("should generate correct PHP code with POST method", () => {
+    test("should generate correct PHP code with POST method and string body", () => {
         const options = {
             method: "POST",
             url: "https://example.com",
@@ -32,65 +33,66 @@ describe("generatePHPRequestsCode", () => {
         const result = generatePHPRequestsCode(options);
         expect(result).toContain(`$method = 'POST';`);
         expect(result).toContain(`$url = 'https://example.com';`);
-        expect(result).toContain(
-            `$headers = {"Content-Type":"application/json"};`
-        );
-        expect(result).toContain(`$query = {"key":"value"};`);
-        expect(result).toContain(`$body = {"data":"test"};`);
+        expect(result).toContain(`$headers = [
+    'Content-Type' => 'application/json'
+]`);
+        expect(result).toContain(`$query = [
+    'key' => 'value'
+]`);
+        expect(result).toContain(`$body = [
+    'data' => 'test'
+]`);
     });
 
-    test("should generate correct PHP code with PUT method", () => {
+    test("should generate correct PHP code with POST method and JsonBody", () => {
         const options = {
-            method: "PUT",
+            method: "POST",
             url: "https://example.com",
             headers: { "Content-Type": "application/json" },
             query: { key: "value" },
-            body: JSON.stringify({ data: "test" }),
+            body: new JsonBody({ data: "test", nested: { key: "value" } }),
         };
         const result = generatePHPRequestsCode(options);
-        expect(result).toContain(`$method = 'PUT';`);
+        expect(result).toContain(`$method = 'POST';`);
         expect(result).toContain(`$url = 'https://example.com';`);
-        expect(result).toContain(
-            `$headers = {"Content-Type":"application/json"};`
-        );
-        expect(result).toContain(`$query = {"key":"value"};`);
-        expect(result).toContain(`$body = {"data":"test"};`);
+        expect(result).toContain(`$headers = [
+    'Content-Type' => 'application/json'
+]`);
+        expect(result).toContain(`$query = [
+    'key' => 'value'
+]`);
+        expect(result).toContain(`$body = [
+    'data' => 'test',
+    'nested' => {"key":"value"}
+]`);
     });
 
-    test("should generate correct PHP code with DELETE method", () => {
+    test("should generate correct PHP code with non-JSON string body", () => {
         const options = {
-            method: "DELETE",
+            method: "POST",
             url: "https://example.com",
-            headers: { "Content-Type": "application/json" },
-            query: { key: "value" },
-            body: "",
+            headers: { "Content-Type": "text/plain" },
+            body: "Hello, world!",
         };
         const result = generatePHPRequestsCode(options);
-        expect(result).toContain(`$method = 'DELETE';`);
+        expect(result).toContain(`$method = 'POST';`);
         expect(result).toContain(`$url = 'https://example.com';`);
-        expect(result).toContain(
-            `$headers = {"Content-Type":"application/json"};`
-        );
-        expect(result).toContain(`$query = {"key":"value"};`);
-        expect(result).toContain(`$body = "";`);
+        expect(result).toContain(`$headers = [
+    'Content-Type' => 'text/plain'
+]`);
+        expect(result).toContain(`$body = 'Hello, world!';`);
     });
 
-    test("should generate correct PHP code with PATCH method", () => {
+    test("should handle empty objects properly", () => {
         const options = {
-            method: "PATCH",
+            method: "GET",
             url: "https://example.com",
-            headers: { "Content-Type": "application/json" },
-            query: { key: "value" },
-            body: JSON.stringify({ data: "test" }),
+            headers: {},
+            query: {},
         };
         const result = generatePHPRequestsCode(options);
-
-        expect(result).toContain(`$method = 'PATCH';`);
-        expect(result).toContain(`$url = 'https://example.com';`);
-        expect(result).toContain(
-            `$headers = {"Content-Type":"application/json"};`
-        );
-        expect(result).toContain(`$query = {"key":"value"};`);
-        expect(result).toContain(`$body = {"data":"test"};`);
+        expect(result).toContain(`$headers = [];`);
+        expect(result).toContain(`$query = [];`);
+        expect(result).toContain(`$body = [];`);
     });
 });

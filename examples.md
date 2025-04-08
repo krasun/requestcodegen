@@ -7,12 +7,14 @@
   (:require [clj-http.client :as client]))
 
 (defn make-request []
-  (let [options {:url "http://example.com"
-         :method :post
-         :headers {"Content-Type":"application/json"}
-         :body {"name" "John Doe"}}]
-    (let [response (client/request options)]
-      response)))
+  (client/request
+    {
+     :url "http://example.com"
+     :method :post
+     :headers {"Content-Type" "application/json"}
+     :body {"name" "John Doe"
+              "baz" ["qux" "quix"]}}))
+
 ```
 
 ## Clojure (GET)
@@ -22,11 +24,13 @@
   (:require [clj-http.client :as client]))
 
 (defn make-request []
-  (let [options {:url "http://example.com"
-         :query {"foo":"bar"}
-         :method :get}]
-    (let [response (client/request options)]
-      response)))
+  (client/request
+    {
+     :url "http://example.com"
+     :query-params {"baz" ["qux" "quix"]
+              "foo" "bar"}
+     :method :get}))
+
 ```
 
 ## C# (POST)
@@ -41,7 +45,11 @@ public class Program {
     public static async Task Main(string[] args) {
         using var client = new HttpClient();
         var requestData = new {
-            name = "John Doe"
+            name = "John Doe",
+            baz = new object[] {
+                "qux",
+                "quix"
+            }
         };
 
         var request = new HttpRequestMessage {
@@ -86,6 +94,8 @@ public class Program {
         
         
         var query = System.Web.HttpUtility.ParseQueryString(string.Empty);
+        query["baz"] = "qux";
+        query["baz"] = "quix";
         query["foo"] = "bar";
         request.RequestUri = new Uri(request.RequestUri + "?" + query);
         try {
@@ -101,13 +111,13 @@ public class Program {
 ## curl (POST)
 
 ```Curl
-curl -X POST 'http://example.com' -H 'Content-Type: application/json' -d '{"name":"John Doe"}'
+curl -X POST 'http://example.com' -H 'Content-Type: application/json' -d '{"name":"John Doe","baz":["qux","quix"]}'
 ```
 
 ## curl (GET)
 
 ```Curl
-curl -X GET 'http://example.com?foo=bar'
+curl -X GET 'http://example.com?baz=qux,quix&foo=bar'
 ```
 
 ## Dart (POST)
@@ -117,11 +127,29 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 Future<void> request() async {
-    var url = Uri.parse('http://example.com');
-    var response = await http.post(url, headers: {"Content-Type":"application/json"}, body: '{"name":"John Doe"}');
+    final url = Uri.parse('http://example.com');
+
+    final options = {
+        "name": "John Doe",
+        "baz": [
+            "qux",
+            "quix"
+        ]
+    };
+
+    final response = await http.post(
+        url,
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: jsonEncode(options)
+    );
+
     if (response.statusCode != 200) {
-        throw Exception('Failed to load data');
+        throw Exception('Request failed with status: ${response.statusCode}');
     }
+
+    // process response    
 }
 ```
 
@@ -132,64 +160,68 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 Future<void> request() async {
-    var url = Uri.parse('http://example.com');
-    var queryParameters = {"foo":"bar"};
-    url = url.replace(queryParameters: queryParameters);
-    var response = await http.get(url);
+    final url = Uri.parse('http://example.com');
+    final queryParameters = {
+        "baz": [
+            "qux",
+            "quix"
+        ],
+        "foo": "bar"
+    };
+    final urlWithQuery = url.replace(queryParameters: queryParameters);
+
+    final response = await http.get(
+        urlWithQuery
+    );
+
     if (response.statusCode != 200) {
-        throw Exception('Failed to load data');
+        throw Exception('Request failed with status: ${response.statusCode}');
     }
+
+    // process response    
 }
 ```
 
 ## Elixir (POST)
 
 ```Elixir
+defmodule Example do
+  use HTTPoison.Base
 
-    defmodule Example do
-      require HTTPoison
+  def request do
+    url = "http://example.com"
+    headers = %{
+    "Content-Type": "application/json"
+  }
+    params = %{}
+    body = %{
+    "name": "John Doe",
+    "baz": ["qux","quix"]
+  }
 
-      def request do
-        headers = {"Content-Type":"application/json"}
-        params = {}
-        body = "{"name":"John Doe"}"
-        method = :post
-        url = "http://example.com"
-
-        case method do
-          :get -> HTTPoison.get(url, headers, params: params)
-          :post -> HTTPoison.post(url, body, headers, params: params)
-          :put -> HTTPoison.put(url, body, headers, params: params)
-          _ -> {:error, "Invalid method"}
-        end
-      end
-    end
-    
+    response = HTTPoison.post!(url, body, headers, params: params)
+  end
+end
 ```
 
 ## Elixir (GET)
 
 ```Elixir
+defmodule Example do
+  use HTTPoison.Base
 
-    defmodule Example do
-      require HTTPoison
+  def request do
+    url = "http://example.com"
+    headers = %{}
+    params = %{
+    "baz": ["qux","quix"],
+    "foo": "bar"
+  }
+    body = nil
 
-      def request do
-        headers = {}
-        params = {"foo":"bar"}
-        body = 
-        method = :get
-        url = "http://example.com"
-
-        case method do
-          :get -> HTTPoison.get(url, headers, params: params)
-          :post -> HTTPoison.post(url, body, headers, params: params)
-          :put -> HTTPoison.put(url, body, headers, params: params)
-          _ -> {:error, "Invalid method"}
-        end
-      end
-    end
-    
+    response = HTTPoison.get!(url, headers, params: params)
+  end
+end
 ```
 
 ## Go (POST)
@@ -200,43 +232,42 @@ package main
 import (
     "bytes"
     "fmt"
+    "io"
     "net/http"
     "net/url"
 )
 
 func main() {
+    client := &http.Client{}
+    
     url := "http://example.com"
     method := "POST"
 
-    client := &http.Client {
-    }
     var req *http.Request
     var err error
 
-    if method == "POST" || method == "PUT" {
-        var jsonStr = []byte(`{"name":"John Doe"}`)
-        req, err = http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
-    } else {
-        req, err = http.NewRequest(method, url, nil)
-    }
-
+    jsonBody := `{
+    "name": "John Doe",
+    "baz": [
+        "qux",
+        "quix"
+    ]
+}`
+    req, err = http.NewRequest(method, url, bytes.NewBufferString(jsonBody))
     if err != nil {
         fmt.Println(err)
         return
     }
 
-    req.Header.Add("Content-Type", "application/json")
+        req.Header.Add("Content-Type", "application/json")
 
-    
-
-    res, err := client.Do(req)
+    resp, err := client.Do(req)
     if err != nil {
         fmt.Println(err)
         return
     }
-    defer res.Body.Close()
+    defer resp.Body.Close()
 }
-
 ```
 
 ## Go (GET)
@@ -247,171 +278,267 @@ package main
 import (
     "bytes"
     "fmt"
+    "io"
     "net/http"
     "net/url"
 )
 
 func main() {
+    client := &http.Client{}
+    
     url := "http://example.com"
     method := "GET"
 
-    client := &http.Client {
-    }
     var req *http.Request
     var err error
 
-    if method == "POST" || method == "PUT" {
-        var jsonStr = []byte(``)
-        req, err = http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
-    } else {
-        req, err = http.NewRequest(method, url, nil)
-    }
-
+    req, err = http.NewRequest(method, url, nil)
     if err != nil {
         fmt.Println(err)
         return
     }
-
-    
 
     params := url.Values{}
-    params.Add("foo", "bar")
+        params.Add("baz", "qux")
+        params.Add("baz", "quix")
+        params.Add("foo", "bar")
     req.URL.RawQuery = params.Encode()
 
-    res, err := client.Do(req)
+    resp, err := client.Do(req)
     if err != nil {
         fmt.Println(err)
         return
     }
-    defer res.Body.Close()
+    defer resp.Body.Close()
 }
-
 ```
 
 ## Java (POST)
 
 ```Java
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        URL url = new URL("http://example.com");
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        Map<String, String> params = new LinkedHashMap<>();
+
+
+        StringBuilder urlBuilder = new StringBuilder("http://example.com");
+        if (!params.isEmpty()) {
+            urlBuilder.append("?");
+            boolean first = true;
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                if (!first) {
+                    urlBuilder.append("&");
+                }
+                urlBuilder.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
+                urlBuilder.append("=");
+                urlBuilder.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+                first = false;
+            }
+        }
+
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlBuilder.toString()).openConnection();
         conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        String input = "{"name":"John Doe"}";
-        OutputStream os = conn.getOutputStream();
-        os.write(input.getBytes());
-        os.flush();
-        if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-            throw new RuntimeException("Failed : HTTP error code : " + conn.getResponseCode());
+
+        conn.setDoOutput(true);
+        try (OutputStream os = conn.getOutputStream()) {
+            byte[] input = String.format(
+            {
+                "name": "John Doe",
+                "baz": [
+                    "qux",
+                    "quix"
+                ]
+            }
+            ).getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+
+        StringBuilder response = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(
+                conn.getResponseCode() >= 400 ? conn.getErrorStream() : conn.getInputStream()))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                response.append(line);
+            }
         }
         conn.disconnect();
     }
 }
+
 ```
 
 ## Java (GET)
 
 ```Java
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        URL url = new URL("http://example.com");
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        Map<String, String> params = new LinkedHashMap<>();
+        params.add("baz", "qux");
+        params.add("baz", "quix");
+        params.add("foo", "bar");
+
+        StringBuilder urlBuilder = new StringBuilder("http://example.com");
+        if (!params.isEmpty()) {
+            urlBuilder.append("?");
+            boolean first = true;
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                if (!first) {
+                    urlBuilder.append("&");
+                }
+                urlBuilder.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
+                urlBuilder.append("=");
+                urlBuilder.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+                first = false;
+            }
+        }
+
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlBuilder.toString()).openConnection();
         conn.setRequestMethod("GET");
-        conn.setDoOutput(true);
-        
-        
-        if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-            throw new RuntimeException("Failed : HTTP error code : " + conn.getResponseCode());
+
+
+
+        StringBuilder response = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(
+                conn.getResponseCode() >= 400 ? conn.getErrorStream() : conn.getInputStream()))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                response.append(line);
+            }
         }
         conn.disconnect();
     }
 }
+
 ```
 
 ## JavaScript (POST)
 
 ```JavaScript
-fetch('http://example.com', {
-method: 'POST',
-headers: {
-'Content-Type': 'application/json'
-},
-body: '{"name":"John Doe"}',
-})
-.catch(error => console.error('Error:', error));
+const params = new URLSearchParams({
+});
+
+const requestOptions = {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body:   {
+      "name": "John Doe",
+      "baz": [
+          "qux",
+          "quix"
+      ]
+  },
+};
+
+const response = await fetch('http://example.com' + '?' + params.toString(), requestOptions);
+
 ```
 
 ## JavaScript (GET)
 
 ```JavaScript
-fetch('http://example.com?foo=bar', {
-method: 'GET',
-})
-.catch(error => console.error('Error:', error));
+const params = new URLSearchParams({
+  baz: 'qux',
+  baz: 'quix',
+  foo: 'bar'
+});
+
+const requestOptions = {
+  method: 'GET',
+};
+
+const response = await fetch('http://example.com' + '?' + params.toString(), requestOptions);
+
 ```
 
 ## Kotlin (POST)
 
 ```Kotlin
+import java.net.URL
+import java.net.HttpURLConnection
+import com.google.gson.Gson
 
-    import java.net.URL
-    import java.net.HttpURLConnection
-    import java.io.OutputStreamWriter
+fun makeRequest() {
+    val gson = Gson()
+    val params = mutableMapOf<String, String>()
 
-    fun makeRequest() {
-        val url = URL("http://example.com")
-        val connection = url.openConnection() as HttpURLConnection
-        connection.requestMethod = "POST"
-connection.setRequestProperty("Content-Type", "application/json")
-        val out = OutputStreamWriter(connection.outputStream)
-        out.write("{"name":"John Doe"}")
-        out.close()
-        val responseCode = connection.responseCode
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw RuntimeException("HTTP error code: $responseCode")
+    val url = URL("http://example.com")
+    val connection = url.openConnection() as HttpURLConnection
+    connection.requestMethod = "POST"
+        connection.setRequestProperty("Content-Type", "application/json")
+        val requestBody = mapOf(
+            "name" to "John Doe",
+            "baz" to "qux,quix"
+        )
+        val jsonBody = gson.toJson(requestBody)
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.outputStream.use { os ->
+            os.write(jsonBody.toByteArray())
         }
+    val response = connection.inputStream.bufferedReader().use { it.readText() }
+    val responseCode = connection.responseCode
+    if (responseCode != HttpURLConnection.HTTP_OK) {
+        throw RuntimeException("HTTP error code: $responseCode")
     }
-    
+}
 ```
 
 ## Kotlin (GET)
 
 ```Kotlin
+import java.net.URL
+import java.net.HttpURLConnection
+import com.google.gson.Gson
 
-    import java.net.URL
-    import java.net.HttpURLConnection
-    import java.io.OutputStreamWriter
+fun makeRequest() {
+    val gson = Gson()
+    val params = mutableMapOf<String, String>()
+        params["baz"] = "qux"
+        params["baz"] = "quix"
+        params["foo"] = "bar"
+    val url = URL("http://example.com?${params.entries.joinToString("&") { "${it.key}=${it.value}" }}")
+    val connection = url.openConnection() as HttpURLConnection
+    connection.requestMethod = "GET"
 
-    fun makeRequest() {
-        val url = URL("http://example.com")
-        val connection = url.openConnection() as HttpURLConnection
-        connection.requestMethod = "GET"
 
-
-        val responseCode = connection.responseCode
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw RuntimeException("HTTP error code: $responseCode")
-        }
+    val response = connection.inputStream.bufferedReader().use { it.readText() }
+    val responseCode = connection.responseCode
+    if (responseCode != HttpURLConnection.HTTP_OK) {
+        throw RuntimeException("HTTP error code: $responseCode")
     }
-    
+}
 ```
 
 ## Node (HTTP) (POST)
 
 ```NodeHTTP
 const http = require('http');
-const querystring = require('querystring');
+const body = {
+    name: "John Doe",
+    baz: ["qux","quix"]
+};
 
 const options = {
     hostname: 'example.com',
@@ -421,16 +548,18 @@ const options = {
     headers: {"Content-Type":"application/json"}
 };
 
+let response = '';
 const req = http.request(options, (res) => {
-    res.on('data', (chunk) => {});
-    res.on('end', () => {});
+    res.on('data', (chunk) => {
+        response += chunk;
+    });
 });
 
 req.on('error', (error) => {
     console.error(error);
 });
 
-req.write('{"name":"John Doe"}');
+req.write(JSON.stringify(body));
 req.end();
 ```
 
@@ -439,24 +568,29 @@ req.end();
 ```NodeHTTP
 const http = require('http');
 const querystring = require('querystring');
+const query = {
+    baz: ["qux","quix"],
+    foo: "bar"
+};
 
 const options = {
     hostname: 'example.com',
     port: 80,
-    path: '/?foo=bar',
+    path: '/' + '?' + querystring.stringify(query),
     method: 'GET',
     headers: {}
 };
 
+let response = '';
 const req = http.request(options, (res) => {
-    res.on('data', (chunk) => {});
-    res.on('end', () => {});
+    res.on('data', (chunk) => {
+        response += chunk;
+    });
 });
 
 req.on('error', (error) => {
     console.error(error);
 });
-
 
 req.end();
 ```
@@ -466,11 +600,19 @@ req.end();
 ```NodeAxios
 const axios = require('axios');
 
-axios({ method: 'POST', url: 'http://example.com', headers: {"Content-Type":"application/json"}, data: {"name":"John Doe"} })
-.then(function (response) {
-    // do something with the response...
-}).catch(function (error) {
-    console.error(error);
+axios({
+    method: 'POST',
+    url: 'http://example.com',
+    headers: {
+    "Content-Type": "application/json"
+},
+    data: {
+    "body": {"name":"John Doe","baz":["qux","quix"]}
+}
+})
+.then(response => response)
+.catch(error => {
+    throw error;
 });
 ```
 
@@ -479,11 +621,17 @@ axios({ method: 'POST', url: 'http://example.com', headers: {"Content-Type":"app
 ```NodeAxios
 const axios = require('axios');
 
-axios({ method: 'GET', url: 'http://example.com', params: {"foo":"bar"} })
-.then(function (response) {
-    // do something with the response...
-}).catch(function (error) {
-    console.error(error);
+axios({
+    method: 'GET',
+    url: 'http://example.com',
+    params: {
+    "baz": ["qux","quix"],
+    "foo": "bar"
+}
+})
+.then(response => response)
+.catch(error => {
+    throw error;
 });
 ```
 
@@ -491,99 +639,104 @@ axios({ method: 'GET', url: 'http://example.com', params: {"foo":"bar"} })
 
 ```NodeFetch
 const fetch = require('node-fetch');
-const querystring = require('querystring');
 
-fetch('http://example.com', {
+const params = {};
+const url = 'http://example.com' + (Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '');
+
+const options = {
     method: 'POST',
-    headers: {"Content-Type":"application/json"},
-    body: '{"name":"John Doe"}'
-})
-.then(response => {
-    if (!response.ok) {
-        throw new Error('Network response was not ok');
-    }
-})
-.catch(error => {
-    console.error('There has been a problem with your fetch operation:', error);
-});
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: {
+    "name": "John Doe",
+    "baz": [
+        "qux",
+        "quix"
+    ]
+}
+};
+
+const response = await fetch(url, options);
+const data = await response.json();
 ```
 
 ## Node (Fetch) (GET)
 
 ```NodeFetch
 const fetch = require('node-fetch');
-const querystring = require('querystring');
 
-fetch('http://example.com?' + querystring.stringify({"foo":"bar"}), {
-    method: 'GET',
-    headers: {},
-    body: ''
-})
-.then(response => {
-    if (!response.ok) {
-        throw new Error('Network response was not ok');
-    }
-})
-.catch(error => {
-    console.error('There has been a problem with your fetch operation:', error);
-});
+const params = {
+    "baz": [
+        "qux",
+        "quix"
+    ],
+    "foo": "bar"
+};
+const url = 'http://example.com' + (Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '');
+
+const options = {
+    method: 'GET'
+};
+
+const response = await fetch(url, options);
+const data = await response.json();
 ```
 
 ## Objective-C (POST)
 
 ```ObjectiveC
+NSURL *url = [NSURL URLWithString:@"http://example.com"];
 
-    #import <Foundation/Foundation.h>
+NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url];
+[request setCachePolicy:NSURLRequestUseProtocolCachePolicy];
+[request setTimeoutInterval:10.0];
+[request setHTTPMethod:@"POST"];
 
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"http://example.com"]
-        cachePolicy:NSURLRequestUseProtocolCachePolicy
-        timeoutInterval:10.0];
-    NSArray *requestHeaders = [@"Content-Type",];
-    NSArray *requestHeaderValues = [@"application/json",];
-    for (int i = 0; i < [requestHeaders count]; i++) {
-        [request addValue:requestHeaderValues[i] forHTTPHeaderField:requestHeaders[i]];
-    }
-    [request setHTTPMethod:@"POST"];
-    
-        NSString *httpBodyString = @"{"name":"John Doe"}";
-        [request setHTTPBody:[httpBodyString dataUsingEncoding:NSUTF8StringEncoding]];
-        
-    NSURLSession *session = [NSURLSession sharedSession];
-    NSURLSessionDataTask *dataTask = [session dataTaskWithRequest:request
-        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-            if (error) {
-                NSLog(@"%@", error);
-            }
-        }];
-    [dataTask resume];
-    
+NSDictionary *headers = @{
+    @"Content-Type": @"application/json"
+};
+
+[headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString *value, BOOL *stop) {
+    [request setValue:value forHTTPHeaderField:key];
+}];
+NSDictionary *httpBody = @{
+    @"name": @"John Doe",
+    @"baz": @[@"qux", @"quix"]
+};
+
+NSData *httpBodyData = [NSJSONSerialization dataWithJSONObject:httpBody options:0 error:nil];
+[request setHTTPBody:httpBodyData];
+
+NSURLSession *session = [NSURLSession sharedSession];
+NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+    NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
+}];
+[task resume];
 ```
 
 ## Objective-C (GET)
 
 ```ObjectiveC
+NSURLComponents *components = [[NSURLComponents alloc] initWithString:@"http://example.com"];
+NSMutableArray *queryItems = [NSMutableArray array];
+[queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"baz" value:@"qux"]];
+[queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"baz" value:@"quix"]];
+[queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"foo" value:@"bar"]];
+[components setQueryItems:queryItems];
+NSURL *url = [components URL];
 
-    #import <Foundation/Foundation.h>
+NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url];
+[request setCachePolicy:NSURLRequestUseProtocolCachePolicy];
+[request setTimeoutInterval:10.0];
+[request setHTTPMethod:@"GET"];
 
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"http://example.com"]
-        cachePolicy:NSURLRequestUseProtocolCachePolicy
-        timeoutInterval:10.0];
-    NSArray *requestHeaders = [@"",];
-    NSArray *requestHeaderValues = [@"",];
-    for (int i = 0; i < [requestHeaders count]; i++) {
-        [request addValue:requestHeaderValues[i] forHTTPHeaderField:requestHeaders[i]];
-    }
-    [request setHTTPMethod:@"GET"];
-    
-    NSURLSession *session = [NSURLSession sharedSession];
-    NSURLSessionDataTask *dataTask = [session dataTaskWithRequest:request
-        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-            if (error) {
-                NSLog(@"%@", error);
-            }
-        }];
-    [dataTask resume];
-    
+
+NSURLSession *session = [NSURLSession sharedSession];
+NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+    NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
+}];
+[task resume];
 ```
 
 ## PHP (POST)
@@ -593,20 +746,22 @@ fetch('http://example.com?' + querystring.stringify({"foo":"bar"}), {
 
 $method = 'POST';
 $url = 'http://example.com';
+
 $options = [
     'http' => [
         'method' => $method,
-        'header' => {"Content-Type":"application/json"},
-        'content' => '{"name":"John Doe"}',
+        'header' => [
+            'Content-Type: application/json',
+        ],
+        'content' => json_encode([
+            'name' => "John Doe",
+            'baz' => ["qux","quix"],
+        ]),
     ],
 ];
 
 $context = stream_context_create($options);
-$result = file_get_contents($url, false, $context);
-
-if ($result === FALSE) { /* Handle error */ }
-
-?>
+$response = file_get_contents($url, false, $context);
 ```
 
 ## PHP (GET)
@@ -616,8 +771,12 @@ if ($result === FALSE) { /* Handle error */ }
 
 $method = 'GET';
 $url = 'http://example.com';
-$query = http_build_query({"foo":"bar"});
-$url .= '?' . $query;
+$query = [
+    'baz' => ["qux","quix"],
+    'foo' => "bar",
+];
+$url .= '?' . http_build_query($query);
+
 $options = [
     'http' => [
         'method' => $method,
@@ -625,52 +784,58 @@ $options = [
 ];
 
 $context = stream_context_create($options);
-$result = file_get_contents($url, false, $context);
-
-if ($result === FALSE) { /* Handle error */ }
-
-?>
+$response = file_get_contents($url, false, $context);
 ```
 
 ## PHP (Guzzle) (POST)
 
 ```PHPGuzzle
 <?php
+
 require 'vendor/autoload.php';
 
 $client = new \GuzzleHttp\Client();
 
+$requestOptions = [];
+
+$requestOptions['headers'] = [
+    'Content-Type' => 'application/json',
+];
+
+$requestOptions['json'] = [
+    'name' => "John Doe",
+    'baz' => ["qux","quix"],
+];
+
 try {
-    $response = $client->request('POST', 'http://example.com', [
-        'headers' => [
-            'Content-Type' => 'application/json',
-        ],
-        'body' => '{"name":"John Doe"}',
-    ]);
+    $response = $client->request('POST', 'http://example.com', $requestOptions);
 } catch (\GuzzleHttp\Exception\RequestException $e) {
-    echo 'Request failed: ' . $e->getMessage();
+    $error = $e->getMessage();
 }
-?>
 ```
 
 ## PHP (Guzzle) (GET)
 
 ```PHPGuzzle
 <?php
+
 require 'vendor/autoload.php';
 
 $client = new \GuzzleHttp\Client();
 
+$requestOptions = [];
+
+$requestOptions['query'] = [
+    'baz[]' => 'qux',
+    'baz[]' => 'quix',
+    'foo' => 'bar',
+];
+
 try {
-    $response = $client->request('GET', 'http://example.com', [
-        'query' => [
-            'foo' => 'bar',
-        ],
-    ]);
+    $response = $client->request('GET', 'http://example.com', $requestOptions);
 } catch (\GuzzleHttp\Exception\RequestException $e) {
-    echo 'Request failed: ' . $e->getMessage();
+    $error = $e->getMessage();
 }
-?>
 ```
 
 ## PHP (Requests) (POST)
@@ -678,11 +843,17 @@ try {
 ```PHPRequests
 <?php
 require 'vendor/autoload.php';
-$headers = {"Content-Type":"application/json"};
-$query = {};
-$body = {"name":"John Doe"};
-$method = 'POST';
+
 $url = 'http://example.com';
+$method = 'POST';
+$headers = [
+    'Content-Type' => 'application/json'
+];
+$query = [];
+$body = [
+    'name' => 'John Doe',
+    'baz' => ["qux","quix"]
+];
 
 $response = Requests::request($url, $headers, $body, $method, $query);
 if ($response->status_code >= 400) {
@@ -696,11 +867,15 @@ if ($response->status_code >= 400) {
 ```PHPRequests
 <?php
 require 'vendor/autoload.php';
-$headers = {};
-$query = {"foo":"bar"};
-$body = "";
-$method = 'GET';
+
 $url = 'http://example.com';
+$method = 'GET';
+$headers = [];
+$query = [
+    'baz' => ["qux","quix"],
+    'foo' => 'bar'
+];
+$body = [];
 
 $response = Requests::request($url, $headers, $body, $method, $query);
 if ($response->status_code >= 400) {
@@ -712,34 +887,62 @@ if ($response->status_code >= 400) {
 ## Python (POST)
 
 ```Python
-import requests
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+import json
+import ssl
 
 def call_api():
     url = "http://example.com"
-    params = None
-    method = "POST"
-    headers = {"Content-Type":"application/json"}
-    data = '{"name":"John Doe"}'
-    response = requests.request(method, url, headers=headers, params=params, data=data)
-    if response.status_code != 200:
-        raise Exception(f"Request failed with status {response.status_code}")
+    request = Request(url)
+    request.method = "POST"
+    request.add_header("Content-Type", "application/json")
+    data = {
+        "name": "John Doe",
+        "baz": [
+                "qux",
+                "quix"
+        ],
+    }
+    request.data = json.dumps(data).encode()
+    ctx = ssl.create_default_context()
+    try:
+        response = urlopen(request, context=ctx)
+    except HTTPError as e:
+        response = e
+        if response.code >= 400:
+            raise
+    return response
 
 ```
 
 ## Python (GET)
 
 ```Python
-import requests
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+import json
+import ssl
 
 def call_api():
     url = "http://example.com"
-    params = {"foo":"bar"}
-    method = "GET"
-    headers = None
-    data = None
-    response = requests.request(method, url, headers=headers, params=params, data=data)
-    if response.status_code != 200:
-        raise Exception(f"Request failed with status {response.status_code}")
+    query_params = {
+        "baz": ["qux","quix"],
+        "foo": "bar",
+    }
+    url = f"{url}?{urlencode(query_params)}"
+    request = Request(url)
+    request.method = "GET"
+    ctx = ssl.create_default_context()
+    try:
+        response = urlopen(request, context=ctx)
+    except HTTPError as e:
+        response = e
+        if response.code >= 400:
+            raise
+    return response
 
 ```
 
@@ -748,16 +951,18 @@ def call_api():
 ```PythonRequests
 import requests
 
-def send_request():
+def call_api():
     url = "http://example.com"
     params = None
     method = "POST"
-    headers = {"Content-Type":"application/json"}
-    data = '''{"name":"John Doe"}'''
-    response = requests.request(method, url, headers=headers, params=params, data=data)
-    if response.status_code != 200:
-        raise Exception("Request failed with status: " + str(response.status_code))
-send_request()
+    headers = {
+        "Content-Type": "application/json",
+    }
+    data = {
+        "name": "John Doe",
+        "baz": ["qux","quix"],
+    }
+    response = requests.request(method, url, headers=headers, params=params, json=data if isinstance(data, dict) else data)
 
 ```
 
@@ -766,16 +971,16 @@ send_request()
 ```PythonRequests
 import requests
 
-def send_request():
+def call_api():
     url = "http://example.com"
-    params = {"foo":"bar"}
+    params = {
+        "baz": ["qux","quix"],
+        "foo": "bar",
+    }
     method = "GET"
     headers = None
     data = None
-    response = requests.request(method, url, headers=headers, params=params, data=data)
-    if response.status_code != 200:
-        raise Exception("Request failed with status: " + str(response.status_code))
-send_request()
+    response = requests.request(method, url, headers=headers, params=params, json=data if isinstance(data, dict) else data)
 
 ```
 
@@ -786,15 +991,37 @@ require 'net/http'
 require 'uri'
 require 'json'
 
-uri = URI.parse("http://example.com")
-http = Net::HTTP.new(uri.host, uri.port)
-request = Net::HTTP::POST.new(uri.request_uri)
-request["Content-Type"] = "application/json"
-request.body = '{"name":"John Doe"}'
-response = http.request(request)
-if response.code.to_i >= 400
-  raise "HTTP Error: #{response.code}"
+def send_request
+  uri = URI.parse("http://example.com")
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = uri.scheme == 'https'
+
+  request = Net::HTTP::Post.new(uri.request_uri)
+
+  request.initialize_http_header(
+    "Content-Type" => "application/json"
+  )
+
+  body = {
+    "name" => "John Doe",
+    "baz" => ["qux","quix"]
+  }
+  request.body = body.to_json
+
+  begin
+    response = http.request(request)
+    case response
+    when Net::HTTPSuccess
+      response
+    else
+      raise "HTTP Error: #{response.code} - #{response.message}"
+    end
+  rescue StandardError => e
+    raise "Request failed: #{e.message}"
+  end
 end
+
+send_request if __FILE__ == $PROGRAM_NAME
 
 ```
 
@@ -805,52 +1032,101 @@ require 'net/http'
 require 'uri'
 require 'json'
 
-uri = URI.parse("http://example.com")
-uri.query = "foo=#{bar}"
-http = Net::HTTP.new(uri.host, uri.port)
-request = Net::HTTP::GET.new(uri.request_uri)
-response = http.request(request)
-if response.code.to_i >= 400
-  raise "HTTP Error: #{response.code}"
+def send_request
+  uri = URI.parse("http://example.com")
+  query_params = {
+    "baz" => qux,quix,
+    "foo" => bar
+  }
+  uri.query = URI.encode_www_form(query_params)
+
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = uri.scheme == 'https'
+
+  request = Net::HTTP::Get.new(uri.request_uri)
+
+  begin
+    response = http.request(request)
+    case response
+    when Net::HTTPSuccess
+      response
+    else
+      raise "HTTP Error: #{response.code} - #{response.message}"
+    end
+  rescue StandardError => e
+    raise "Request failed: #{e.message}"
+  end
 end
+
+send_request if __FILE__ == $PROGRAM_NAME
 
 ```
 
 ## Rust (POST)
 
 ```Rust
-use std::collections::HashMap;
-use reqwest::{Client, Method, Url, header};
+use reqwest::{Client, Method};
+use serde_json::Value;
 
-pub async fn make_request() -> Result<(), reqwest::Error> {
+pub async fn make_request() -> Result<reqwest::Response, reqwest::Error> {
     let client = Client::new();
-    let mut url = Url::parse("http://example.com").unwrap();
-    let method = Method::from_bytes(b"POST").unwrap();
-    let mut headers = header::HeaderMap::new();
-    headers.insert("Content-Type", "application/json".parse().unwrap());
-    let request = client.request(method, url);
-    request.body("{"name":"John Doe"}");
-    let response = request.send().await?;
-    Ok(())
+    let mut url = "http://example.com".parse()?;
+    let request = client.request(Method::POST, url)
+        .headers(
+        {
+            "Content-Type": "application/json"
+        }
+            .into())
+        .json(&serde_json::json!(
+        {
+            "body": {
+                "name": "John Doe",
+                "baz": [
+                    "qux",
+                    "quix"
+                ]
+            }
+        }
+        ))
+        .send()
+        .await?;
+    Ok(response)
 }
 ```
 
 ## Rust (GET)
 
 ```Rust
-use std::collections::HashMap;
-use reqwest::{Client, Method, Url, header};
+use reqwest::{Client, Method};
+use serde_json::Value;
 
-pub async fn make_request() -> Result<(), reqwest::Error> {
+pub async fn make_request() -> Result<reqwest::Response, reqwest::Error> {
     let client = Client::new();
-    let mut url = Url::parse("http://example.com").unwrap();
-    let mut params = HashMap::new();
-    params.insert("foo", "bar");
-    url.query_pairs_mut().extend_pairs(params.into_iter());
-    let method = Method::from_bytes(b"GET").unwrap();
-    let request = client.request(method, url);
-    let response = request.send().await?;
-    Ok(())
+    let mut url = "http://example.com".parse()?;
+    let query_params: Value = serde_json::json!(
+    {
+        "baz": [
+            "qux",
+            "quix"
+        ],
+        "foo": "bar"
+    }
+    );
+    if let Value::Object(params) = query_params {
+        let query_string = params.iter()
+            .flat_map(|(k, v)| match v {
+                Value::Array(arr) => arr.iter()
+                    .map(|x| (k.clone(), x.to_string()))
+                    .collect::<Vec<_>>(),
+                _ => vec![(k.clone(), v.to_string())]
+            })
+            .collect::<Vec<_>>();
+        url.query_pairs_mut().extend_pairs(query_string);
+    }
+    let request = client.request(Method::GET, url)
+        .send()
+        .await?;
+    Ok(response)
 }
 ```
 
@@ -862,12 +1138,22 @@ import Foundation
 var request = URLRequest(url: URL(string: "http://example.com")!,timeoutInterval: Double.infinity)
 request.httpMethod = "POST"
 request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-request.httpBody = "{"name":"John Doe"}".data(using: .utf8)
+let parameters: [String: Any] = {
+    "name": "John Doe",
+    "baz": [
+        "qux",
+        "quix"
+    ]
+}
+request.httpBody = try? JSONSerialization.data(withJSONObject: parameters)
+request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+
 let task = URLSession.shared.dataTask(with: request) { data, response, error in
-  guard let data = data else {
-    print(String(describing: error))
-    return
-  }
+    if let error = error {
+        print("Error: \(error)")
+        return
+    }
+    let response = data
 }
 task.resume()
 
@@ -878,16 +1164,23 @@ task.resume()
 ```Swift
 import Foundation
 
-var request = URLRequest(url: URL(string: "http://example.com")!,timeoutInterval: Double.infinity)
+let components = URLComponents(string: "http://example.com")!
+let queryItems: [URLQueryItem] = [
+    URLQueryItem(name: "baz", value: "qux"),
+    URLQueryItem(name: "baz", value: "quix"),
+    URLQueryItem(name: "foo", value: "bar")
+]
+components.queryItems = queryItems
+
+var request = URLRequest(url: components.url!,timeoutInterval: Double.infinity)
 request.httpMethod = "GET"
-var components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!
-components.queryItems = [URLQueryItem(name: "foo", value: "bar")]
-request.url = components.url
+
 let task = URLSession.shared.dataTask(with: request) { data, response, error in
-  guard let data = data else {
-    print(String(describing: error))
-    return
-  }
+    if let error = error {
+        print("Error: \(error)")
+        return
+    }
+    let response = data
 }
 task.resume()
 
@@ -896,12 +1189,15 @@ task.resume()
 ## Wget (POST)
 
 ```Wget
-wget --post-data '{"name":"John Doe"}' --header 'Content-Type: application/json' 'http://example.com'
+wget --post-data '{"name":"John Doe","baz":["qux","quix"]}' \
+  --header 'Content-Type: application/json' \
+  'http://example.com'
 ```
 
 ## Wget (GET)
 
 ```Wget
-wget 'http://example.com?foo=bar'
+wget \
+  'http://example.com?baz=qux&baz=quix&foo=bar'
 ```
 

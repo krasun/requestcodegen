@@ -12,7 +12,7 @@ describe('generateClojureCode', () => {
         const options = { url: 'http://example.com', query: { foo: 'bar' } };
         const result = generateClojureCode(options);
         expect(result).toContain(':url "http://example.com"');
-        expect(result).toContain(':query {"foo":"bar"}');
+        expect(result).toContain(':query-params {"foo" "bar"}');
     });
 
     test('should generate code with url and method', () => {
@@ -26,7 +26,7 @@ describe('generateClojureCode', () => {
         const options = { url: 'http://example.com', headers: { 'Content-Type': 'application/json' } };
         const result = generateClojureCode(options);
         expect(result).toContain(':url "http://example.com"');
-        expect(result).toContain(':headers {"Content-Type":"application/json"}');
+        expect(result).toContain(':headers {"Content-Type" "application/json"}');
     });
 
     test('should generate code with url and body', () => {
