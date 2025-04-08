@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Code Examples Generators
+
+All code generators should follow the next rules: 
+
+1. They don't produce code with comments.
+2. They should generate idiomatic code for their target lanuage. 
+3. The should not try to extract data from response, but in the code example, the response variable should be the last one. 
+4. They should generate compact and elegant code. 

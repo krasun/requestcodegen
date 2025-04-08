@@ -19,8 +19,8 @@ Using the library is as easy as:
 import { generateCode } from "requestcodegen";
 
 const clojureCodeExample = generateCode(
-  { url: "http://example.com", method: "POST" },
-  CodeTarget.Clojure
+    { url: "http://example.com", method: "POST" },
+    CodeTarget.Clojure
 );
 ```
 
@@ -31,12 +31,6 @@ To build and publish the library:
 1. Bump the version property in the `package.json` file.
 2. Run `npm run prepare`.
 3. Run `npm publish`.
-
-## Generate code
-
-```shell
-OPENAI_MODEL=<model> OPENAI_BASE_URL="<OpenAI API base URL>" OPENAI_API_KEY="OpenAI API key" npm run generate src/generators
-```
 
 ## Code Examples
 
