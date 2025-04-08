@@ -4,27 +4,29 @@
 
 ```Clojure
 (ns my.namespace
-(:require [clj-http.client :as client]))
+  (:require [clj-http.client :as client]))
 
 (defn make-request []
-(let [options {:url "http://example.com"
-:method :post
-:headers {"Content-Type":"application/json"}
-:body "{"name":"John Doe"}"}]
-(client/request options))
+  (let [options {:url "http://example.com"
+         :method :post
+         :headers {"Content-Type":"application/json"}
+         :body {"name" "John Doe"}}]
+    (let [response (client/request options)]
+      response)))
 ```
 
 ## Clojure (GET)
 
 ```Clojure
 (ns my.namespace
-(:require [clj-http.client :as client]))
+  (:require [clj-http.client :as client]))
 
 (defn make-request []
-(let [options {:url "http://example.com"
-:query {"foo":"bar"}
-:method :get}]
-(client/request options))
+  (let [options {:url "http://example.com"
+         :query {"foo":"bar"}
+         :method :get}]
+    (let [response (client/request options)]
+      response)))
 ```
 
 ## C# (POST)
@@ -33,36 +35,34 @@
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Text.Json;
 
-public class Program
-{
-    public static async Task Main(string[] args)
-    {
-        using (var client = new HttpClient())
-        {
-            var request = new HttpRequestMessage
-            {
-                Method = new HttpMethod("POST"),
-                RequestUri = new Uri("http://example.com"),
-            };
-            
-            request.Headers.Add("Content-Type", "application/json");
-            
-            request.Content = new StringContent("{"name":"John Doe"}");
-            
-            
-            
-            try
-            {
-                using (var response = await client.SendAsync(request))
-                {
-                    response.EnsureSuccessStatusCode();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.ToString());
-            }
+public class Program {
+    public static async Task Main(string[] args) {
+        using var client = new HttpClient();
+        var requestData = new {
+            name = "John Doe"
+        };
+
+        var request = new HttpRequestMessage {
+            Method = new HttpMethod("POST"),
+            RequestUri = new Uri("http://example.com")
+        };
+        request.Headers.Add("Content-Type", "application/json");
+        
+        var jsonOptions = new JsonSerializerOptions { 
+        };
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(requestData, jsonOptions),
+            System.Text.Encoding.UTF8,
+            "application/json"
+        );
+        
+        try {
+            using var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();            
+        } catch (Exception ex) {
+            Console.WriteLine(ex.ToString());
         }
     }
 }
@@ -74,38 +74,25 @@ public class Program
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Text.Json;
 
-public class Program
-{
-    public static async Task Main(string[] args)
-    {
-        using (var client = new HttpClient())
-        {
-            var request = new HttpRequestMessage
-            {
-                Method = new HttpMethod("GET"),
-                RequestUri = new Uri("http://example.com"),
-            };
-            
-            
-            
-            
-            
-            var query = System.Web.HttpUtility.ParseQueryString(string.Empty);
-            query["foo"] = "bar";
-            request.RequestUri = new Uri(request.RequestUri + "?" + query);
-            
-            try
-            {
-                using (var response = await client.SendAsync(request))
-                {
-                    response.EnsureSuccessStatusCode();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.ToString());
-            }
+public class Program {
+    public static async Task Main(string[] args) {
+        using var client = new HttpClient();
+        var request = new HttpRequestMessage {
+            Method = new HttpMethod("GET"),
+            RequestUri = new Uri("http://example.com")
+        };
+        
+        
+        var query = System.Web.HttpUtility.ParseQueryString(string.Empty);
+        query["foo"] = "bar";
+        request.RequestUri = new Uri(request.RequestUri + "?" + query);
+        try {
+            using var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();            
+        } catch (Exception ex) {
+            Console.WriteLine(ex.ToString());
         }
     }
 }
