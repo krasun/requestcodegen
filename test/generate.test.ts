@@ -66,7 +66,7 @@ describe("compatibility", () => {
 
     test("PHP keeps the stream implementation and PHPCurl is new", () => {
         expect(CodeTarget.PHP).toBe("PHP");
-        expect(CodeTarget.PHPCurl).toBe("PHP (cURL)");
+        expect(CodeTarget.PHPCurl).toBe("PHP (curl)");
         expect(generateCode({ url: "https://x.test" }, CodeTarget.PHP)).toContain(
             "stream_context_create"
         );

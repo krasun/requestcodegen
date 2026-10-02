@@ -578,7 +578,7 @@ $context = stream_context_create($options);
 $response = file_get_contents($url, false, $context);
 ```
 
-## PHP (cURL) (GET)
+## PHP (curl) (GET)
 
 ```PHPCurl
 <?php
@@ -593,7 +593,7 @@ curl_setopt_array($ch, [
 $response = curl_exec($ch);
 ```
 
-## PHP (cURL) (POST)
+## PHP (curl) (POST)
 
 ```PHPCurl
 <?php

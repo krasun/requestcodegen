@@ -1,6 +1,6 @@
 {
   "name": "requestcodegen",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Parse curl commands and raw HTTP requests, and generate HTTP client code in different programming languages.",
   "keywords": [
     "curl",
@@ -38,8 +38,7 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist",
-    "CHANGELOG.md"
+    "dist"
   ],
   "sideEffects": false,
   "engines": {

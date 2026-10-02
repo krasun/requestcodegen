@@ -2,7 +2,7 @@ import { phpString } from "../escape";
 import { Request } from "../request";
 import { phpArray, phpList } from "./php-common";
 
-/** PHP with the cURL extension (ext-curl). */
+/** PHP with the curl extension (ext-curl). */
 export function generatePHPCurlCode(request: Request): string {
     const options: [string, string][] = [];
 

@@ -161,7 +161,7 @@ These targets are verified end to end against a local server, including redirect
 | `JavaScript` | Browser `fetch()`, ES module with top-level `await` | A modern browser |
 | `NodeFetch` | Native Node.js `fetch()`, ES module (`.mjs`) with top-level `await` | Node.js 18+ |
 | `NodeAxios` | Axios, ES module (`.mjs`) with top-level `await` | `npm install axios` (1.x) |
-| `PHPCurl` | PHP cURL extension | PHP with `ext-curl` |
+| `PHPCurl` | PHP curl extension | PHP with `ext-curl` |
 | `PHPGuzzle` | Guzzle | `composer require guzzlehttp/guzzle` (7.x) |
 
 Examples assign the response to `response` (`$response` in PHP) and do not assume it is JSON.
@@ -212,7 +212,7 @@ Other limitations:
 
 `generateCode`, `RequestOptions` and every existing `CodeTarget` name and value are unchanged, `CodeTarget.PHP` is still the stream implementation, and calls like `generateCode({ url }, CodeTarget.Curl)` still work. `JsonBody` was removed: pass `JSON.stringify(value)` as the body and set `Content-Type: application/json`.
 
-Generated code changed on purpose to fix incorrect output. See [CHANGELOG.md](CHANGELOG.md).
+Generated code changed on purpose to fix incorrect output.
 
 ## Development
 
