@@ -1,90 +1,70 @@
-import { JsonBody, RequestOptions } from "../request";
+import { Request, queryPairs } from "../request";
+import { goString } from "../escape";
 
-export function generateGoCode(options: RequestOptions): string {
-    // Helper function to format query parameters
-    function formatQueryParams(query: any): string {
-        if (!query) return "";
-        const entries = Object.entries(query);
-        if (entries.length === 0) return "";
+export function generateGoCode(request: Request): string {
+    const imports = ["fmt", "net/http"];
+    const lines: string[] = [];
 
-        const params = entries
-            .map(([key, value]) => {
-                if (Array.isArray(value)) {
-                    return value
-                        .map((v) => `        params.Add("${key}", "${v}")`)
-                        .join("\n");
-                }
-                return `        params.Add("${key}", "${value}")`;
-            })
-            .join("\n");
+    lines.push(`client := &http.Client{}`);
+    lines.push(``);
 
-        return `
-    params := url.Values{}\n${params}
-    req.URL.RawQuery = params.Encode()`;
+    if (request.body !== undefined) {
+        imports.push("strings");
+        lines.push(`body := strings.NewReader(${goString(request.body)})`);
+        lines.push(
+            `req, err := http.NewRequest(${goString(request.method)}, ${goString(request.url)}, body)`
+        );
+    } else {
+        lines.push(
+            `req, err := http.NewRequest(${goString(request.method)}, ${goString(request.url)}, nil)`
+        );
     }
+    lines.push(`if err != nil {`);
+    lines.push(`    fmt.Println(err)`);
+    lines.push(`    return`);
+    lines.push(`}`);
 
-    // Helper function to format headers
-    function formatHeaders(headers: any): string {
-        if (!headers) return "";
-        const entries = Object.entries(headers);
-        if (entries.length === 0) return "";
-
-        return entries
-            .map(
-                ([key, value]) => `        req.Header.Add("${key}", "${value}")`
-            )
-            .join("\n");
-    }
-
-    function formatBody(body: any): string {
-        if (body instanceof JsonBody) {
-            return JSON.stringify(body.body, null, 4);
+    if (request.headers.length > 0) {
+        lines.push(``);
+        for (const [key, value] of request.headers) {
+            lines.push(
+                key.toLowerCase() === "host"
+                    ? `req.Host = ${goString(value)}`
+                    : `req.Header.Set(${goString(key)}, ${goString(value)})`
+            );
         }
-
-        return body;
     }
 
-    const code = `package main
+    if (request.query.length > 0) {
+        // url.Values.Encode() sorts keys, which would change the order (and signatures).
+        imports.push("net/url");
+        if (!imports.includes("strings")) {
+            imports.push("strings");
+        }
+        lines.push(``);
+        lines.push(`params := []string{`);
+        for (const [key, value] of queryPairs(request.query)) {
+            lines.push(`    url.QueryEscape(${goString(key)}) + "=" + url.QueryEscape(${goString(value)}),`);
+        }
+        lines.push(`}`);
+        lines.push(`req.URL.RawQuery = strings.Join(params, "&")`);
+    }
+
+    lines.push(``);
+    lines.push(`resp, err := client.Do(req)`);
+    lines.push(`if err != nil {`);
+    lines.push(`    fmt.Println(err)`);
+    lines.push(`    return`);
+    lines.push(`}`);
+    lines.push(`defer resp.Body.Close()`);
+
+    return `package main
 
 import (
-    "bytes"
-    "fmt"
-    "io"
-    "net/http"
-    "net/url"
+${imports.sort().map((name) => `    "${name}"`).join("\n")}
 )
 
 func main() {
-    client := &http.Client{}
-    
-    url := "${options.url}"
-    method := "${options.method || "GET"}"
-
-    var req *http.Request
-    var err error
-${
-    options.body
-        ? `
-    jsonBody := \`${formatBody(options.body)}\`
-    req, err = http.NewRequest(method, url, bytes.NewBufferString(jsonBody))`
-        : `
-    req, err = http.NewRequest(method, url, nil)`
-}
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-${options.headers ? `\n${formatHeaders(options.headers)}` : ""}${
-        options.query ? formatQueryParams(options.query) : ""
-    }
-
-    resp, err := client.Do(req)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-    defer resp.Body.Close()
+${lines.map((line) => (line ? `    ${line}` : "")).join("\n")}
 }`;
-
-    return code;
 }

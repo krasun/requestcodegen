@@ -1,109 +1,72 @@
-import { JsonBody, RequestOptions } from "../request";
+import { Request, queryPairs } from "../request";
+import { unsupportedTarget } from "../errors";
+import { csharpString } from "../escape";
 
-export function generateCSharpCode(options: RequestOptions): string {
-    // Remove content-type from headers if it's JSON since it will be set by StringContent
-    const headers = { ...options.headers };
-    const isJsonContent =
-        headers &&
-        Object.entries(headers).some(
-            ([key, value]) =>
-                key.toLowerCase() === "content-type" &&
-                value.toLowerCase().includes("json")
+export function generateCSharpCode(request: Request): string {
+    const headers = request.headers;
+    const isContentHeader = ([name]: [string, string]) =>
+        name.toLowerCase().startsWith("content-");
+    if (request.body === undefined && headers.some(isContentHeader)) {
+        unsupportedTarget(
+            "C#",
+            "HttpClient only sends Content-* headers together with a body.",
+            "headers"
         );
+    }
+    const lines: string[] = [];
 
-    // Helper function to convert JSON to C# object initialization syntax
-    function toCSharpObject(obj: any, indent: number = 3): string {
-        if (obj === null) return "null";
-        if (typeof obj === "string") return `"${obj}"`;
-        if (typeof obj === "number" || typeof obj === "boolean")
-            return obj.toString();
-        if (Array.isArray(obj)) {
-            if (obj.length === 0) return "new object[] {}";
-            const items = obj
-                .map((item) => toCSharpObject(item, indent + 1))
-                .join(",\n" + " ".repeat(indent * 4));
-            return `new object[] {\n${" ".repeat(
-                indent * 4
-            )}${items}\n${" ".repeat((indent - 1) * 4)}}`;
+    lines.push(`using var client = new HttpClient();`);
+
+    if (request.query.length > 0) {
+        lines.push(``);
+        lines.push(`var query = HttpUtility.ParseQueryString(string.Empty);`);
+        for (const [key, value] of queryPairs(request.query)) {
+            lines.push(`query.Add(${csharpString(key)}, ${csharpString(value)});`);
         }
-        if (obj instanceof JsonBody) {
-            const entries = Object.entries(obj.body);
-            if (entries.length === 0) return "new {}";
-            const props = entries
-                .map(
-                    ([key, value]) =>
-                        `${key} = ${toCSharpObject(value, indent + 1)}`
-                )
-                .join(",\n" + " ".repeat(indent * 4));
-            return `new {\n${" ".repeat(indent * 4)}${props}\n${" ".repeat(
-                (indent - 1) * 4
-            )}}`;
-        }
-        return "null";
     }
 
-    let code = `using System;
+    const uri = request.query
+        ? `new Uri(${csharpString(request.url + "?")} + query)`
+        : `new Uri(${csharpString(request.url)})`;
+    lines.push(``);
+    lines.push(`var request = new HttpRequestMessage {`);
+    lines.push(`    Method = new HttpMethod(${csharpString(request.method)}),`);
+    lines.push(`    RequestUri = ${uri}`);
+    lines.push(`};`);
+
+    for (const [name, value] of headers.filter((h) => !isContentHeader(h))) {
+        lines.push(
+            `request.Headers.TryAddWithoutValidation(${csharpString(name)}, ${csharpString(value)});`
+        );
+    }
+
+    if (request.body !== undefined) {
+        lines.push(``);
+        lines.push(`request.Content = new StringContent(${csharpString(request.body)}, Encoding.UTF8);`);
+        lines.push(`request.Content.Headers.Remove("Content-Type");`);
+        for (const [name, value] of headers.filter(isContentHeader)) {
+            lines.push(
+                `request.Content.Headers.TryAddWithoutValidation(${csharpString(name)}, ${csharpString(value)});`
+            );
+        }
+    }
+
+    lines.push(``);
+    lines.push(`using var response = await client.SendAsync(request);`);
+
+    const body = lines
+        .map((line) => (line ? `        ${line}` : ""))
+        .join("\n");
+
+    return `using System;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
-using System.Text.Json;
+using System.Web;
 
 public class Program {
     public static async Task Main(string[] args) {
-        using var client = new HttpClient();
-        ${
-            isJsonContent && options.body
-                ? `var requestData = ${toCSharpObject(
-                      options.body
-                  )};\n\n        `
-                : ""
-        }var request = new HttpRequestMessage {
-            Method = new HttpMethod("${options.method || "GET"}"),
-            RequestUri = new Uri("${options.url}")
-        };
-        ${Object.entries(headers || {})
-            .map(
-                ([key, value]) =>
-                    `request.Headers.Add("${key}", "${value}");\n        `
-            )
-            .join("")}
-        ${
-            options.body
-                ? isJsonContent
-                    ? `var jsonOptions = new JsonSerializerOptions { 
-        };
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestData, jsonOptions),
-            System.Text.Encoding.UTF8,
-            "application/json"
-        );`
-                    : `request.Content = new StringContent("${options.body}");`
-                : ""
-        }
-        ${
-            options.query
-                ? `var query = System.Web.HttpUtility.ParseQueryString(string.Empty);
-        ${Object.entries(options.query)
-            .map(([key, value]) => {
-                if (Array.isArray(value)) {
-                    return value
-                        .map((v) => `query["${key}"] = "${v}";\n        `)
-                        .join("");
-                } else {
-                    return `query["${key}"] = "${value}";\n        `;
-                }
-            })
-            .join(
-                ""
-            )}request.RequestUri = new Uri(request.RequestUri + "?" + query);`
-                : ""
-        }
-        try {
-            using var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode();            
-        } catch (Exception ex) {
-            Console.WriteLine(ex.ToString());
-        }
+${body}
     }
 }`;
-    return code;
 }

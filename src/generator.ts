@@ -1,4 +1,10 @@
+import { GeneratorError } from "./errors";
 import { generateClojureCode } from "./generators/clojure";
+import {
+    ClientDefaults,
+    requireAsciiHeaders,
+    requireDefaultFlags,
+} from "./generators/common";
 import { generateCSharpCode } from "./generators/csharp";
 import { generateCurlCode } from "./generators/curl";
 import { generateDartCode } from "./generators/dart";
@@ -12,6 +18,7 @@ import { generateNodeFetchCode } from "./generators/node-fetch";
 import { generateNodeHTTPCode } from "./generators/node-http";
 import { generateObjectiveCCode } from "./generators/objective-c";
 import { generatePHPCode } from "./generators/php";
+import { generatePHPCurlCode } from "./generators/php-curl";
 import { generatePHPGuzzleCode } from "./generators/php-guzzle";
 import { generatePHPRequestsCode } from "./generators/php-requests";
 import { generatePythonCode } from "./generators/python";
@@ -20,71 +27,138 @@ import { generateRubyCode } from "./generators/ruby";
 import { generateRustCode } from "./generators/rust";
 import { generateSwiftCode } from "./generators/swift";
 import { generateWgetCode } from "./generators/wget";
-import { JsonBody, RequestOptions } from "./request";
+import { Request, toRequest } from "./request";
+import { RequestOptions } from "./request";
 import { CodeTarget } from "./target";
 
-export * from "./target";
-export * from "./request";
+type Generator = (request: Request) => string;
 
-export function generateCode(
-    request: RequestOptions,
-    target: CodeTarget
-): string {
-    if (request.body instanceof JsonBody) {
-        if (request.headers) {
-            const contentType =
-                request.headers["Content-Type"] ||
-                request.headers["content-type"];
-            if (!contentType || !contentType.includes("application/json")) {
-                request.headers["Content-Type"] = "application/json";
-            }
+/**
+ * For generators that only produce their client's default redirect and
+ * compression behavior: rejects explicit values that differ from it.
+ */
+function withClientDefaults(
+    target: CodeTarget,
+    defaults: ClientDefaults,
+    generate: Generator,
+    { asciiHeaders = false } = {}
+): Generator {
+    return (request) => {
+        requireDefaultFlags(target, request, defaults);
+        if (asciiHeaders) {
+            requireAsciiHeaders(target, request.headers);
         }
-    }
+        return generate(request);
+    };
+}
 
-    switch (target) {
-        case CodeTarget.Clojure:
-            return generateClojureCode(request);
-        case CodeTarget.CSharp:
-            return generateCSharpCode(request);
-        case CodeTarget.Curl:
-            return generateCurlCode(request);
-        case CodeTarget.Dart:
-            return generateDartCode(request);
-        case CodeTarget.Elixir:
-            return generateElixirCode(request);
-        case CodeTarget.Go:
-            return generateGoCode(request);
-        case CodeTarget.Java:
-            return generateJavaCode(request);
-        case CodeTarget.JavaScript:
-            return generateJavaScriptCode(request);
-        case CodeTarget.Kotlin:
-            return generateKotlinCode(request);
-        case CodeTarget.NodeHTTP:
-            return generateNodeHTTPCode(request);
-        case CodeTarget.NodeAxios:
-            return generateNodeAxiosCode(request);
-        case CodeTarget.NodeFetch:
-            return generateNodeFetchCode(request);
-        case CodeTarget.ObjectiveC:
-            return generateObjectiveCCode(request);
-        case CodeTarget.PHP:
-            return generatePHPCode(request);
-        case CodeTarget.PHPGuzzle:
-            return generatePHPGuzzleCode(request);
-        case CodeTarget.PHPRequests:
-            return generatePHPRequestsCode(request);
-        case CodeTarget.Python:
-            return generatePythonCode(request);
-        case CodeTarget.PythonRequests:
-            return generatePythonRequestsCode(request);
-        case CodeTarget.Ruby:
-            return generateRubyCode(request);
-        case CodeTarget.Rust:
-            return generateRustCode(request);
-        case CodeTarget.Swift:
-            return generateSwiftCode(request);
-        case CodeTarget.Wget:
-            return generateWgetCode(request);
+const GENERATORS: Record<CodeTarget, Generator> = {
+    [CodeTarget.Curl]: generateCurlCode,
+    [CodeTarget.PythonRequests]: generatePythonRequestsCode,
+    [CodeTarget.JavaScript]: generateJavaScriptCode,
+    [CodeTarget.NodeFetch]: generateNodeFetchCode,
+    [CodeTarget.NodeAxios]: generateNodeAxiosCode,
+    [CodeTarget.PHPCurl]: generatePHPCurlCode,
+    [CodeTarget.PHPGuzzle]: generatePHPGuzzleCode,
+    [CodeTarget.Wget]: withClientDefaults(
+        CodeTarget.Wget,
+        { followRedirects: true, compressed: false },
+        generateWgetCode
+    ),
+    [CodeTarget.Clojure]: withClientDefaults(
+        CodeTarget.Clojure,
+        { followRedirects: true, compressed: true },
+        generateClojureCode
+    ),
+    [CodeTarget.CSharp]: withClientDefaults(
+        CodeTarget.CSharp,
+        { followRedirects: true, compressed: false },
+        generateCSharpCode
+    ),
+    [CodeTarget.Dart]: withClientDefaults(
+        CodeTarget.Dart,
+        { followRedirects: true, compressed: true },
+        generateDartCode
+    ),
+    [CodeTarget.Elixir]: withClientDefaults(
+        CodeTarget.Elixir,
+        { followRedirects: false, compressed: false },
+        generateElixirCode
+    ),
+    [CodeTarget.Go]: withClientDefaults(
+        CodeTarget.Go,
+        { followRedirects: true, compressed: true },
+        generateGoCode
+    ),
+    [CodeTarget.Java]: withClientDefaults(
+        CodeTarget.Java,
+        { followRedirects: true, compressed: false },
+        generateJavaCode
+    ),
+    [CodeTarget.Kotlin]: withClientDefaults(
+        CodeTarget.Kotlin,
+        { followRedirects: true, compressed: false },
+        generateKotlinCode
+    ),
+    [CodeTarget.NodeHTTP]: withClientDefaults(
+        CodeTarget.NodeHTTP,
+        { followRedirects: false, compressed: false },
+        generateNodeHTTPCode,
+        { asciiHeaders: true }
+    ),
+    [CodeTarget.ObjectiveC]: withClientDefaults(
+        CodeTarget.ObjectiveC,
+        { followRedirects: true, compressed: true },
+        generateObjectiveCCode
+    ),
+    [CodeTarget.PHP]: withClientDefaults(
+        CodeTarget.PHP,
+        { followRedirects: true, compressed: false },
+        generatePHPCode
+    ),
+    [CodeTarget.PHPRequests]: withClientDefaults(
+        CodeTarget.PHPRequests,
+        { followRedirects: true, compressed: true },
+        generatePHPRequestsCode
+    ),
+    [CodeTarget.Python]: withClientDefaults(
+        CodeTarget.Python,
+        { followRedirects: true, compressed: false },
+        generatePythonCode,
+        { asciiHeaders: true }
+    ),
+    [CodeTarget.Ruby]: withClientDefaults(
+        CodeTarget.Ruby,
+        { followRedirects: false, compressed: true },
+        generateRubyCode
+    ),
+    [CodeTarget.Rust]: withClientDefaults(
+        CodeTarget.Rust,
+        { followRedirects: true, compressed: false },
+        generateRustCode
+    ),
+    [CodeTarget.Swift]: withClientDefaults(
+        CodeTarget.Swift,
+        { followRedirects: true, compressed: true },
+        generateSwiftCode,
+        { asciiHeaders: true }
+    ),
+};
+
+/**
+ * Generates example code that sends the request with the target's HTTP
+ * client. The request is validated and never mutated.
+ */
+export function generateCode(request: RequestOptions, target: CodeTarget): string {
+    const generate = Object.prototype.hasOwnProperty.call(GENERATORS, target)
+        ? GENERATORS[target]
+        : undefined;
+    if (!generate) {
+        throw new GeneratorError(
+            "UNSUPPORTED_TARGET",
+            `Unknown code target: ${String(target)}.`,
+            "target"
+        );
     }
+    return generate(toRequest(request));
 }

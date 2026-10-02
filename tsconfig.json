@@ -1,23 +1,14 @@
 {
     "compilerOptions": {
-        "lib": [
-            "es2021"
-        ],
+        "lib": ["es2021", "dom"],
         "module": "commonjs",
         "target": "es2021",
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "outDir": "dist",
-        "declarationDir": "dist/@types", 
-        "declaration": true,
+        "noEmit": true
     },
-    "include": [
-        "src/**/*"
-    ],
-    "exclude": [
-        "node_modules",
-        "dist"
-    ]
+    "include": ["src/**/*", "test/**/*"],
+    "exclude": ["node_modules", "dist"]
 }

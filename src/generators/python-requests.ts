@@ -1,51 +1,73 @@
-import { JsonBody, RequestOptions } from "../request";
+import { pythonString } from "../escape";
+import { Request } from "../request";
+import { formatLiteral, headersForCompression, LiteralSyntax } from "./common";
 
-export function generatePythonRequestsCode(options: RequestOptions): string {
-    let code = `import requests\n\n`;
-    code += `def call_api():\n`;
-    code += `    url = "${options.url}"\n`;
+const PYTHON: LiteralSyntax = {
+    string: pythonString,
+    key: pythonString,
+    null: "None",
+    true: "True",
+    false: "False",
+    array: ["[", "]"],
+    object: ["{", "}"],
+    pair: ": ",
+};
 
-    if (options.query) {
-        code += `    params = {\n`;
-        Object.entries(options.query).forEach(([key, value]) => {
-            code += `        "${key}": ${JSON.stringify(value)},\n`;
-        });
-        code += `    }\n`;
-    } else {
-        code += `    params = None\n`;
+const SHORTCUTS = new Set(["get", "post", "put", "patch", "delete", "head", "options"]);
+
+/** http.client encodes str as Latin-1, so non-ASCII text is passed as UTF-8 bytes. */
+function pythonText(value: string): string {
+    return /[^\x00-\x7f]/.test(value)
+        ? `${pythonString(value)}.encode()`
+        : pythonString(value);
+}
+
+export function generatePythonRequestsCode(request: Request): string {
+    const blocks: string[] = [];
+    const args: string[] = [pythonString(request.url)];
+
+    if (request.query.length > 0) {
+        const params = request.query.map(
+            ({ key, values, isArray }) =>
+                `    ${pythonString(key)}: ${formatLiteral(isArray ? values : values[0], PYTHON, 1)},`
+        );
+        blocks.push(`params = {\n${params.join("\n")}\n}`);
+        args.push("params=params");
     }
 
-    if (options.method) {
-        code += `    method = "${options.method}"\n`;
-    } else {
-        code += `    method = "GET"\n`;
+    const headers = headersForCompression(request);
+    if (headers.length > 0) {
+        const lines = headers.map(
+            ([name, value]) => `    ${pythonString(name)}: ${pythonText(value)},`
+        );
+        blocks.push(`headers = {\n${lines.join("\n")}\n}`);
+        args.push("headers=headers");
     }
 
-    if (options.headers) {
-        code += `    headers = {\n`;
-        Object.entries(options.headers).forEach(([key, value]) => {
-            code += `        "${key}": "${value}",\n`;
-        });
-        code += `    }\n`;
-    } else {
-        code += `    headers = None\n`;
+    if (request.body !== undefined) {
+        blocks.push(`data = ${pythonText(request.body)}`);
+        args.push("data=data");
     }
 
-    if (options.body) {
-        if (options.body instanceof JsonBody) {
-            code += `    data = {\n`;
-            Object.entries(options.body.body).forEach(([key, value]) => {
-                code += `        "${key}": ${JSON.stringify(value)},\n`;
-            });
-            code += `    }\n`;
-        } else {
-            code += `    data = '${options.body}'\n`;
-        }
-    } else {
-        code += `    data = None\n`;
+    const method = request.method.toLowerCase();
+    const followsByDefault = method !== "head";
+    if (
+        request.followRedirects !== undefined &&
+        request.followRedirects !== followsByDefault
+    ) {
+        args.push(`allow_redirects=${request.followRedirects ? "True" : "False"}`);
     }
 
-    code += `    response = requests.request(method, url, headers=headers, params=params, json=data if isinstance(data, dict) else data)\n`;
+    // Requests always sends the method in upper case.
+    const shortcut = SHORTCUTS.has(method);
+    const fn = shortcut ? `requests.${method}` : "requests.request";
+    const callArgs = shortcut
+        ? args
+        : [pythonString(request.method.toUpperCase()), ...args];
+    const invocation =
+        callArgs.length === 1
+            ? `${fn}(${callArgs[0]})`
+            : `${fn}(\n${callArgs.map((arg) => `    ${arg},`).join("\n")}\n)`;
 
-    return code;
+    return ["import requests", ...blocks, `response = ${invocation}`].join("\n\n");
 }

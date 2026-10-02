@@ -1,25 +1,18 @@
-import { RequestOptions, JsonBody } from "../request";
+import { Request, queryValues } from "../request";
+import { clojureString } from "../escape";
 
-function formatClojureMap(obj: any): string {
-    if (typeof obj !== 'object' || obj === null) {
-        return `"${obj}"`;
-    }
-
-    const entries = Object.entries(obj).map(([k, v]) => {
-        if (Array.isArray(v)) {
-            const items = v.map(item => formatClojureMap(item)).join(" ");
-            return `"${k}" [${items}]`;
-        }
-        if (typeof v === 'object' && v !== null) {
-            return `"${k}" ${formatClojureMap(v)}`;
-        }
-        return `"${k}" "${v}"`;
+function formatClojureMap(pairs: [string, string | string[]][]): string {
+    const entries = pairs.map(([key, value]) => {
+        const formatted = Array.isArray(value)
+            ? `[${value.map(clojureString).join(" ")}]`
+            : clojureString(value);
+        return `${clojureString(key)} ${formatted}`;
     });
 
     return `{${entries.join("\n              ")}}`;
 }
 
-export function generateClojureCode(options: RequestOptions): string {
+export function generateClojureCode(request: Request): string {
     let code = `(ns my.namespace
   (:require [clj-http.client :as client]))
 
@@ -27,23 +20,20 @@ export function generateClojureCode(options: RequestOptions): string {
   (client/request
     {`;
 
-    code += `\n     :url "${options.url}"`;
+    code += `\n     :url ${clojureString(request.url)}`;
 
-    if (options.query) {
-        code += `\n     :query-params ${formatClojureMap(options.query)}`;
+    if (request.query.length > 0) {
+        code += `\n     :query-params ${formatClojureMap(queryValues(request.query))}`;
     }
 
-    if (options.method) {
-        code += `\n     :method :${options.method.toLowerCase()}`;
+    code += `\n     :method ${/^[A-Za-z0-9_-]+$/.test(request.method) ? `:${request.method.toLowerCase()}` : `(keyword ${clojureString(request.method.toLowerCase())})`}`;
+
+    if (request.headers.length > 0) {
+        code += `\n     :headers ${formatClojureMap(request.headers)}`;
     }
 
-    if (options.headers) {
-        code += `\n     :headers ${formatClojureMap(options.headers)}`;
-    }
-
-    if (options.body) {
-        const body = options.body instanceof JsonBody ? options.body.body : options.body;
-        code += `\n     :body ${formatClojureMap(body)}`;
+    if (request.body !== undefined) {
+        code += `\n     :body ${clojureString(request.body)}`;
     }
 
     code += `}))\n`;

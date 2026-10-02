@@ -1,63 +1,82 @@
-import { RequestOptions, JsonBody } from "../request";
+import { Request, queryPairs } from "../request";
+import { unsupportedTarget } from "../errors";
+import { kotlinString } from "../escape";
 
-export function generateKotlinCode(options: RequestOptions): string {
-    function formatHeaders(headers: any): string {
-        if (!headers) return "";
-        return Object.entries(headers)
-            .map(([key, value]) => `        connection.setRequestProperty("${key}", "${value}")`)
-            .join("\n");
+// HttpURLConnection silently drops these unless restricted headers are allowed.
+const RESTRICTED_HEADERS = new Set([
+    "access-control-request-headers",
+    "access-control-request-method",
+    "connection",
+    "content-length",
+    "content-transfer-encoding",
+    "host",
+    "keep-alive",
+    "origin",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "via",
+]);
+
+const URL_CONNECTION_METHODS = new Set([
+    "GET",
+    "POST",
+    "HEAD",
+    "OPTIONS",
+    "PUT",
+    "DELETE",
+    "TRACE",
+]);
+
+export function generateKotlinCode(request: Request): string {
+    if (!URL_CONNECTION_METHODS.has(request.method)) {
+        unsupportedTarget(
+            "Kotlin",
+            `HttpURLConnection does not support the ${request.method} method.`,
+            "method"
+        );
     }
 
-    function formatQueryParams(query: any): string {
-        if (!query) return "";
-        return Object.entries(query)
-            .map(([key, value]) => {
-                if (Array.isArray(value)) {
-                    return value.map(v => `        params["${key}"] = "${v}"`).join("\n");
-                }
-                return `        params["${key}"] = "${value}"`;
-            })
-            .join("\n");
+    const lines: string[] = [];
+    if (request.headers.map(([name]) => name).some((name) => RESTRICTED_HEADERS.has(name.toLowerCase()))) {
+        lines.push(`System.setProperty("sun.net.http.allowRestrictedHeaders", "true")`);
     }
-
-    function formatBody(body: string | JsonBody | undefined): string {
-        if (!body) return "";
-        if (body instanceof JsonBody) {
-            return `        val requestBody = mapOf(
-${Object.entries(body.body)
-    .map(([key, value]) => `            "${key}" to "${value}"`)
-    .join(",\n")}
-        )
-        val jsonBody = gson.toJson(requestBody)
-        connection.setRequestProperty("Content-Type", "application/json")
-        connection.outputStream.use { os ->
-            os.write(jsonBody.toByteArray())
-        }`;
+    if (request.query.length > 0) {
+        lines.push(`val params = listOf(`);
+        for (const [key, value] of queryPairs(request.query)) {
+            lines.push(`    ${kotlinString(key)} to ${kotlinString(value)},`);
         }
-        return `        connection.outputStream.use { os ->
-            os.write("""${body}""".toByteArray())
-        }`;
+        lines.push(`)`);
+        lines.push(
+            `val query = params.joinToString("&") { (key, value) -> URLEncoder.encode(key, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8") }`
+        );
+        lines.push(`val url = URL(${kotlinString(request.url + "?")} + query)`);
+    } else {
+        lines.push(`val url = URL(${kotlinString(request.url)})`);
     }
 
-    const code = `import java.net.URL
-import java.net.HttpURLConnection
-import com.google.gson.Gson
+    lines.push(`val connection = url.openConnection() as HttpURLConnection`);
+    lines.push(`connection.requestMethod = ${kotlinString(request.method)}`);
+    for (const [key, value] of request.headers) {
+        lines.push(`connection.setRequestProperty(${kotlinString(key)}, ${kotlinString(value)})`);
+    }
+
+    if (request.body !== undefined) {
+        lines.push(`connection.doOutput = true`);
+        lines.push(`connection.outputStream.use { os ->`);
+        lines.push(`    os.write(${kotlinString(request.body)}.toByteArray(Charsets.UTF_8))`);
+        lines.push(`}`);
+    }
+
+    lines.push(
+        `val response = (if (connection.responseCode >= 400) connection.errorStream else connection.inputStream)?.bufferedReader()?.use { it.readText() }`
+    );
+
+    return `import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
 
 fun makeRequest() {
-    val gson = Gson()
-    val params = mutableMapOf<String, String>()
-${options.query ? formatQueryParams(options.query) : ""}
-    val url = URL("${options.url}${options.query ? "?" + "\${params.entries.joinToString(\"&\") { \"\${it.key}=\${it.value}\" }}" : ""}")
-    val connection = url.openConnection() as HttpURLConnection
-    connection.requestMethod = "${options.method || "GET"}"
-${formatHeaders(options.headers)}
-${options.body ? formatBody(options.body) : ""}
-    val response = connection.inputStream.bufferedReader().use { it.readText() }
-    val responseCode = connection.responseCode
-    if (responseCode != HttpURLConnection.HTTP_OK) {
-        throw RuntimeException("HTTP error code: $responseCode")
-    }
+${lines.map((line) => `    ${line}`).join("\n")}
 }`;
-
-    return code;
 }

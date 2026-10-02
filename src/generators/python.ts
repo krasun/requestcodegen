@@ -1,72 +1,34 @@
-import { JsonBody, RequestOptions } from "../request";
+import { Request, queryValues } from "../request";
+import { pythonString } from "../escape";
 
-export function generatePythonCode(options: RequestOptions): string {
-    let code = `from urllib.parse import urlencode
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError
-import json
-import ssl
+/** Python standard library (urllib.request). */
+export function generatePythonCode(request: Request): string {
+    const imports = ["from urllib.request import Request, urlopen"];
+    let code = `def call_api():\n    url = ${pythonString(request.url)}\n`;
 
-def call_api():
-    url = "${options.url}"\n`;
-
-    if (options.query) {
+    if (request.query.length > 0) {
+        imports.unshift("from urllib.parse import urlencode");
         code += `    query_params = {\n`;
-        Object.entries(options.query).forEach(([key, value]) => {
-            if (Array.isArray(value)) {
-                code += `        "${key}": ${JSON.stringify(value)},\n`;
-            } else {
-                code += `        "${key}": "${value}",\n`;
-            }
-        });
-        code += `    }\n`;
-        code += `    url = f"{url}?{urlencode(query_params)}"\n`;
-    }
-
-    code += `    request = Request(url)\n`;
-    code += `    request.method = "${options.method || "GET"}"\n`;
-
-    if (options.headers) {
-        Object.entries(options.headers).forEach(([key, value]) => {
-            code += `    request.add_header("${key}", "${value}")\n`;
-        });
-    }
-
-    if (options.body) {
-        let bodyData;
-        if (options.body instanceof JsonBody) {
-            bodyData = options.body.body;
-            if (typeof bodyData === "object" && bodyData !== null) {
-                code += `    data = {\n`;
-                Object.entries(bodyData).forEach(([key, value]) => {
-                    if (typeof value === "object" && value !== null) {
-                        code += `        "${key}": ${JSON.stringify(
-                            value,
-                            null,
-                            8
-                        ).replace(/\n/g, "\n        ")},\n`;
-                    } else {
-                        code += `        "${key}": ${JSON.stringify(value)},\n`;
-                    }
-                });
-                code += `    }\n`;
-                code += `    request.data = json.dumps(data).encode()\n`;
-            } else {
-                code += `    request.data = '${options.body}'.encode()\n`;
-            }
-        } else {
-            code += `    request.data = '${options.body}'.encode()\n`;
+        for (const [key, value] of queryValues(request.query)) {
+            const formatted = Array.isArray(value)
+                ? `[${value.map(pythonString).join(", ")}]`
+                : pythonString(value);
+            code += `        ${pythonString(key)}: ${formatted},\n`;
         }
+        code += `    }\n`;
+        code += `    url = url + "?" + urlencode(query_params, doseq=True)\n`;
     }
 
-    code += `    ctx = ssl.create_default_context()
-    try:
-        response = urlopen(request, context=ctx)
-    except HTTPError as e:
-        response = e
-        if response.code >= 400:
-            raise
-    return response\n`;
+    const data =
+        request.body !== undefined ? `${pythonString(request.body)}.encode()` : "None";
+    code += `    request = Request(url, data=${data}, method=${pythonString(request.method)})\n`;
 
-    return code;
+    for (const [key, value] of request.headers) {
+        code += `    request.add_header(${pythonString(key)}, ${pythonString(value)})\n`;
+    }
+
+    code += `    response = urlopen(request)\n`;
+    code += `    return response\n`;
+
+    return `${imports.join("\n")}\n\n${code}`;
 }

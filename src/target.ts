@@ -13,6 +13,7 @@ export enum CodeTarget {
     NodeFetch = "Node (Fetch)",
     ObjectiveC = "Objective-C",
     PHP = "PHP",
+    PHPCurl = "PHP (cURL)",
     PHPGuzzle = "PHP (Guzzle)",
     PHPRequests = "PHP (Requests)",
     Python = "Python",

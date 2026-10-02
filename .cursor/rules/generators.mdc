@@ -13,3 +13,5 @@ All code generators should follow the next rules:
 4. They should generate compact and elegant code. But with new lines, no need to pack everything in one line.
 5. If the options body is a JSON body, it should be a dictionary object formatted properly and be ready to accept big JSON. Put properties on new line each.
 6. And the same for query parameters (as for JSON): it should be a dictionary object formatted properly and be ready to accept many parameters and some of them can be an array even, put them on new line each.
+7. Never interpolate request data directly. Emit every string with the helpers from `src/escape.ts`, so quotes, backslashes, line breaks and interpolation markers stay data.
+8. Generators receive a validated `Request` (see `src/request.ts`). If the target's client cannot send the request as specified, throw `UNSUPPORTED_TARGET` instead of generating code that sends something else.

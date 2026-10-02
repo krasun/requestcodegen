@@ -1,0 +1,388 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`required target output JavaScript 1`] = `
+"const params = new URLSearchParams([
+    ["tags", "a b"],
+    ["tags", "c&d"],
+    ["empty", ""],
+    ["q", "x=y"],
+]);
+
+const response = await fetch("https://example.com/api/items?" + params, {
+    method: "POST",
+    headers: {
+        "X-Tricky": "it's \\"quoted\\" \\\\ $HOME \`cmd\` #{x} \\\\(x) \${x} \\t tab",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+        name: "it's \\"quoted\\" \\\\ back\\nline $HOME \`cmd\` #{x} \\\\(x) \${x} café ✓ \\t tab",
+        nested: {
+            list: [1, 2.5, true, false, null],
+            empty: {},
+            none: [],
+        },
+    }),
+});"
+`;
+
+exports[`required target output JavaScript 2`] = `
+"const response = await fetch("https://api.example.com/graphql?op=Viewer", {
+    method: "POST",
+    headers: {
+        "accept": "application/json",
+        "accept-language": "en-US,en;q=0.9,uk;q=0.8",
+        "content-type": "application/json",
+        "priority": "u=1, i",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+    },
+    body: JSON.stringify({
+        query: "query { viewer { login } }",
+        variables: {
+            note: "it's café — ok",
+            path: "C:\\\\tmp",
+        },
+    }),
+    credentials: "include",
+});"
+`;
+
+exports[`required target output JavaScript 3`] = `"const response = await fetch("https://example.com");"`;
+
+exports[`required target output Node (Axios) 1`] = `
+"import axios from "axios";
+
+const response = await axios({
+    method: "POST",
+    url: "https://example.com/api/items",
+    params: {
+        tags: ["a b", "c&d"],
+        empty: "",
+        q: "x=y",
+    },
+    paramsSerializer: {
+        indexes: null,
+    },
+    headers: {
+        "X-Tricky": "it's \\"quoted\\" \\\\ $HOME \`cmd\` #{x} \\\\(x) \${x} \\t tab",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    },
+    data: {
+        name: "it's \\"quoted\\" \\\\ back\\nline $HOME \`cmd\` #{x} \\\\(x) \${x} café ✓ \\t tab",
+        nested: {
+            list: [1, 2.5, true, false, null],
+            empty: {},
+            none: [],
+        },
+    },
+});"
+`;
+
+exports[`required target output Node (Axios) 2`] = `
+"import axios from "axios";
+
+const response = await axios({
+    method: "POST",
+    url: "https://api.example.com/graphql?op=Viewer",
+    headers: {
+        "Cookie": "logged_in=yes; _octo=GH1.1.1234; tz=Europe%2FKyiv",
+        "accept": "application/json",
+        "accept-language": "en-US,en;q=0.9,uk;q=0.8",
+        "content-type": "application/json",
+        "origin": "https://example.com",
+        "priority": "u=1, i",
+        "referer": "https://example.com/",
+        "sec-ch-ua": "\\"Chromium\\";v=\\"129\\", \\"Not=A?Brand\\";v=\\"8\\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\\"macOS\\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-site",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+    },
+    data: {
+        query: "query { viewer { login } }",
+        variables: {
+            note: "it's café — ok",
+            path: "C:\\\\tmp",
+        },
+    },
+});"
+`;
+
+exports[`required target output Node (Axios) 3`] = `
+"import axios from "axios";
+
+const response = await axios({
+    url: "https://example.com",
+});"
+`;
+
+exports[`required target output Node (Fetch) 1`] = `
+"const params = new URLSearchParams([
+    ["tags", "a b"],
+    ["tags", "c&d"],
+    ["empty", ""],
+    ["q", "x=y"],
+]);
+
+const response = await fetch("https://example.com/api/items?" + params, {
+    method: "POST",
+    headers: {
+        "X-Tricky": "it's \\"quoted\\" \\\\ $HOME \`cmd\` #{x} \\\\(x) \${x} \\t tab",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+        name: "it's \\"quoted\\" \\\\ back\\nline $HOME \`cmd\` #{x} \\\\(x) \${x} café ✓ \\t tab",
+        nested: {
+            list: [1, 2.5, true, false, null],
+            empty: {},
+            none: [],
+        },
+    }),
+});"
+`;
+
+exports[`required target output Node (Fetch) 2`] = `
+"const response = await fetch("https://api.example.com/graphql?op=Viewer", {
+    method: "POST",
+    headers: {
+        "Cookie": "logged_in=yes; _octo=GH1.1.1234; tz=Europe%2FKyiv",
+        "accept": "application/json",
+        "accept-language": "en-US,en;q=0.9,uk;q=0.8",
+        "content-type": "application/json",
+        "origin": "https://example.com",
+        "priority": "u=1, i",
+        "referer": "https://example.com/",
+        "sec-ch-ua": "\\"Chromium\\";v=\\"129\\", \\"Not=A?Brand\\";v=\\"8\\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\\"macOS\\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-site",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+    },
+    body: JSON.stringify({
+        query: "query { viewer { login } }",
+        variables: {
+            note: "it's café — ok",
+            path: "C:\\\\tmp",
+        },
+    }),
+});"
+`;
+
+exports[`required target output Node (Fetch) 3`] = `"const response = await fetch("https://example.com");"`;
+
+exports[`required target output PHP (Guzzle) 1`] = `
+"<?php
+
+require 'vendor/autoload.php';
+
+$client = new \\GuzzleHttp\\Client();
+
+$response = $client->request('POST', 'https://example.com/api/items', [
+    'query' => \\GuzzleHttp\\Psr7\\Query::build([
+        'tags' => ['a b', 'c&d'],
+        'empty' => '',
+        'q' => 'x=y',
+    ]),
+    'headers' => [
+        'X-Tricky' => 'it\\'s "quoted" \\\\ $HOME \`cmd\` #{x} \\\\(x) \${x} 	 tab',
+        'Accept' => 'application/json',
+        'Content-Type' => 'application/json',
+    ],
+    'body' => '{"name":"it\\'s \\\\"quoted\\\\" \\\\\\\\ back\\\\nline $HOME \`cmd\` #{x} \\\\\\\\(x) \${x} café ✓ \\\\t tab","nested":{"list":[1,2.5,true,false,null],"empty":{},"none":[]}}',
+]);"
+`;
+
+exports[`required target output PHP (Guzzle) 2`] = `
+"<?php
+
+require 'vendor/autoload.php';
+
+$client = new \\GuzzleHttp\\Client();
+
+$response = $client->request('POST', 'https://api.example.com/graphql?op=Viewer', [
+    'headers' => [
+        'Cookie' => 'logged_in=yes; _octo=GH1.1.1234; tz=Europe%2FKyiv',
+        'accept' => 'application/json',
+        'accept-language' => 'en-US,en;q=0.9,uk;q=0.8',
+        'content-type' => 'application/json',
+        'origin' => 'https://example.com',
+        'priority' => 'u=1, i',
+        'referer' => 'https://example.com/',
+        'sec-ch-ua' => '"Chromium";v="129", "Not=A?Brand";v="8"',
+        'sec-ch-ua-mobile' => '?0',
+        'sec-ch-ua-platform' => '"macOS"',
+        'sec-fetch-dest' => 'empty',
+        'sec-fetch-mode' => 'cors',
+        'sec-fetch-site' => 'same-site',
+        'user-agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+    ],
+    'body' => '{"query":"query { viewer { login } }","variables":{"note":"it\\'s café — ok","path":"C:\\\\\\\\tmp"}}',
+]);"
+`;
+
+exports[`required target output PHP (Guzzle) 3`] = `
+"<?php
+
+require 'vendor/autoload.php';
+
+$client = new \\GuzzleHttp\\Client();
+
+$response = $client->request('GET', 'https://example.com');"
+`;
+
+exports[`required target output PHP (cURL) 1`] = `
+"<?php
+
+$ch = curl_init();
+
+curl_setopt_array($ch, [
+    CURLOPT_URL => 'https://example.com/api/items?tags=a+b&tags=c%26d&empty=&q=x%3Dy',
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_HTTPHEADER => [
+        'X-Tricky: it\\'s "quoted" \\\\ $HOME \`cmd\` #{x} \\\\(x) \${x} 	 tab',
+        'Accept: application/json',
+        'Content-Type: application/json',
+    ],
+    CURLOPT_POSTFIELDS => '{"name":"it\\'s \\\\"quoted\\\\" \\\\\\\\ back\\\\nline $HOME \`cmd\` #{x} \\\\\\\\(x) \${x} café ✓ \\\\t tab","nested":{"list":[1,2.5,true,false,null],"empty":{},"none":[]}}',
+]);
+
+$response = curl_exec($ch);"
+`;
+
+exports[`required target output PHP (cURL) 2`] = `
+"<?php
+
+$ch = curl_init();
+
+curl_setopt_array($ch, [
+    CURLOPT_URL => 'https://api.example.com/graphql?op=Viewer',
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_HTTPHEADER => [
+        'Cookie: logged_in=yes; _octo=GH1.1.1234; tz=Europe%2FKyiv',
+        'accept: application/json',
+        'accept-language: en-US,en;q=0.9,uk;q=0.8',
+        'content-type: application/json',
+        'origin: https://example.com',
+        'priority: u=1, i',
+        'referer: https://example.com/',
+        'sec-ch-ua: "Chromium";v="129", "Not=A?Brand";v="8"',
+        'sec-ch-ua-mobile: ?0',
+        'sec-ch-ua-platform: "macOS"',
+        'sec-fetch-dest: empty',
+        'sec-fetch-mode: cors',
+        'sec-fetch-site: same-site',
+        'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+    ],
+    CURLOPT_POSTFIELDS => '{"query":"query { viewer { login } }","variables":{"note":"it\\'s café — ok","path":"C:\\\\\\\\tmp"}}',
+]);
+
+$response = curl_exec($ch);"
+`;
+
+exports[`required target output PHP (cURL) 3`] = `
+"<?php
+
+$ch = curl_init();
+
+curl_setopt_array($ch, [
+    CURLOPT_URL => 'https://example.com',
+    CURLOPT_RETURNTRANSFER => true,
+]);
+
+$response = curl_exec($ch);"
+`;
+
+exports[`required target output Python (Requests) 1`] = `
+"import requests
+
+params = {
+    "tags": ["a b", "c&d"],
+    "empty": "",
+    "q": "x=y",
+}
+
+headers = {
+    "X-Tricky": "it's \\"quoted\\" \\\\ $HOME \`cmd\` #{x} \\\\(x) \${x} \\t tab",
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+}
+
+data = "{\\"name\\":\\"it's \\\\\\"quoted\\\\\\" \\\\\\\\ back\\\\nline $HOME \`cmd\` #{x} \\\\\\\\(x) \${x} café ✓ \\\\t tab\\",\\"nested\\":{\\"list\\":[1,2.5,true,false,null],\\"empty\\":{},\\"none\\":[]}}".encode()
+
+response = requests.post(
+    "https://example.com/api/items",
+    params=params,
+    headers=headers,
+    data=data,
+)"
+`;
+
+exports[`required target output Python (Requests) 2`] = `
+"import requests
+
+headers = {
+    "Cookie": "logged_in=yes; _octo=GH1.1.1234; tz=Europe%2FKyiv",
+    "accept": "application/json",
+    "accept-language": "en-US,en;q=0.9,uk;q=0.8",
+    "content-type": "application/json",
+    "origin": "https://example.com",
+    "priority": "u=1, i",
+    "referer": "https://example.com/",
+    "sec-ch-ua": '"Chromium";v="129", "Not=A?Brand";v="8"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"macOS"',
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-site",
+    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+}
+
+data = "{\\"query\\":\\"query { viewer { login } }\\",\\"variables\\":{\\"note\\":\\"it's café — ok\\",\\"path\\":\\"C:\\\\\\\\tmp\\"}}".encode()
+
+response = requests.post(
+    "https://api.example.com/graphql?op=Viewer",
+    headers=headers,
+    data=data,
+)"
+`;
+
+exports[`required target output Python (Requests) 3`] = `
+"import requests
+
+response = requests.get("https://example.com")"
+`;
+
+exports[`required target output curl 1`] = `
+"curl 'https://example.com/api/items?tags=a+b&tags=c%26d&empty=&q=x%3Dy' \\
+  -H 'X-Tricky: it'\\''s "quoted" \\ $HOME \`cmd\` #{x} \\(x) \${x} 	 tab' \\
+  -H 'Accept: application/json' \\
+  -H 'Content-Type: application/json' \\
+  -d '{"name":"it'\\''s \\"quoted\\" \\\\ back\\nline $HOME \`cmd\` #{x} \\\\(x) \${x} café ✓ \\t tab","nested":{"list":[1,2.5,true,false,null],"empty":{},"none":[]}}'"
+`;
+
+exports[`required target output curl 2`] = `
+"curl 'https://api.example.com/graphql?op=Viewer' \\
+  -H 'Cookie: logged_in=yes; _octo=GH1.1.1234; tz=Europe%2FKyiv' \\
+  -H 'accept: application/json' \\
+  -H 'accept-language: en-US,en;q=0.9,uk;q=0.8' \\
+  -H 'content-type: application/json' \\
+  -H 'origin: https://example.com' \\
+  -H 'priority: u=1, i' \\
+  -H 'referer: https://example.com/' \\
+  -H 'sec-ch-ua: "Chromium";v="129", "Not=A?Brand";v="8"' \\
+  -H 'sec-ch-ua-mobile: ?0' \\
+  -H 'sec-ch-ua-platform: "macOS"' \\
+  -H 'sec-fetch-dest: empty' \\
+  -H 'sec-fetch-mode: cors' \\
+  -H 'sec-fetch-site: same-site' \\
+  -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36' \\
+  -d '{"query":"query { viewer { login } }","variables":{"note":"it'\\''s café — ok","path":"C:\\\\tmp"}}'"
+`;
+
+exports[`required target output curl 3`] = `"curl 'https://example.com'"`;

@@ -1,87 +1,37 @@
-import { RequestOptions } from "../request";
+import { Request, queryPairs } from "../request";
+import { rustString } from "../escape";
 
-export function generateRustCode(options: RequestOptions): string {
-    let code = `use reqwest::{Client, Method};
-use serde_json::Value;
-
-pub async fn make_request() -> Result<reqwest::Response, reqwest::Error> {
-    let client = Client::new();
-    let mut url = "${options.url}".parse()?;`;
-
-    if (options.query) {
-        const queryStr = JSON.stringify(options.query, null, 4)
-            .split('\n')
-            .map(line => '    ' + line)
-            .join('\n');
-            
-        code += `
-    let query_params: Value = serde_json::json!(
-${queryStr}
+/** Rust with reqwest (async) and tokio. */
+export function generateRustCode(request: Request): string {
+    const lines: string[] = [];
+    lines.push(`let client = reqwest::Client::new();`);
+    lines.push(
+        `let method = reqwest::Method::from_bytes(${rustString(request.method)}.as_bytes()).unwrap();`
     );
-    if let Value::Object(params) = query_params {
-        let query_string = params.iter()
-            .flat_map(|(k, v)| match v {
-                Value::Array(arr) => arr.iter()
-                    .map(|x| (k.clone(), x.to_string()))
-                    .collect::<Vec<_>>(),
-                _ => vec![(k.clone(), v.to_string())]
-            })
-            .collect::<Vec<_>>();
-        url.query_pairs_mut().extend_pairs(query_string);
-    }`;
-    }
+    lines.push(`let response = client`);
+    lines.push(`    .request(method, ${rustString(request.url)})`);
 
-    code += `
-    let request = client.request(Method::${options.method || 'GET'}, url)`;
-
-    if (options.headers) {
-        const headersStr = JSON.stringify(options.headers, null, 4)
-            .split('\n')
-            .map(line => '        ' + line)
-            .join('\n');
-            
-        code += `
-        .headers(
-${headersStr}
-            .into())`;
-    }
-
-    if (options.body) {
-        if (typeof options.body === 'string') {
-            try {
-                const parsedBody = JSON.parse(options.body);
-                const bodyStr = JSON.stringify(parsedBody, null, 4)
-                    .split('\n')
-                    .map(line => '        ' + line)
-                    .join('\n');
-                    
-                code += `
-        .json(&serde_json::json!(
-${bodyStr}
-        ))`;
-            } catch {
-                code += `
-        .body("${options.body}")`;
-            }
-        } else {
-            const bodyStr = JSON.stringify(options.body, null, 4)
-                .split('\n')
-                .map(line => '        ' + line)
-                .join('\n');
-                
-            code += `
-        .json(&serde_json::json!(
-${bodyStr}
-        ))`;
+    if (request.query.length > 0) {
+        lines.push(`    .query(&[`);
+        for (const [key, value] of queryPairs(request.query)) {
+            lines.push(`        (${rustString(key)}, ${rustString(value)}),`);
         }
+        lines.push(`    ])`);
     }
 
-    code += `
-        .send()
-        .await?;
-    Ok(response)
+    for (const [key, value] of request.headers) {
+        lines.push(`    .header(${rustString(key)}, ${rustString(value)})`);
+    }
+
+    if (request.body !== undefined) {
+        lines.push(`    .body(${rustString(request.body)})`);
+    }
+
+    lines.push(`    .send()`);
+    lines.push(`    .await?;`);
+    lines.push(`Ok(response)`);
+
+    return `pub async fn make_request() -> Result<reqwest::Response, reqwest::Error> {
+${lines.map((line) => `    ${line}`).join("\n")}
 }`;
-
-    return code;
 }
-

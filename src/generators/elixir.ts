@@ -1,49 +1,31 @@
-import { JsonBody, RequestOptions } from "../request";
+import { Request, queryPairs } from "../request";
+import { elixirString } from "../escape";
 
-export function generateElixirCode(options: RequestOptions): string {
-    function formatMap(obj: any): string {
-        if (!obj || Object.keys(obj).length === 0) return "%{}";
-        
-        const entries = Object.entries(obj).map(([key, value]) => {
-            if (Array.isArray(value)) {
-                return `    "${key}": ${JSON.stringify(value)}`;
-            }
-            if (typeof value === 'object' && value !== null) {
-                return `    "${key}": ${JSON.stringify(value)}`;
-            }
-            return `    "${key}": "${value}"`;
-        });
-        
-        return "%{\n" + entries.join(",\n") + "\n  }";
+function tupleList(pairs: [string, string][]): string {
+    if (pairs.length === 0) {
+        return "[]";
     }
+    return `[\n${pairs
+        .map(([key, value]) => `      {${elixirString(key)}, ${elixirString(value)}}`)
+        .join(",\n")}\n    ]`;
+}
 
-    function formatBody(body: any): string {
-        if (!body) return "nil";
+export function generateElixirCode(request: Request): string {
+    const method = /^[A-Za-z0-9_]+$/.test(request.method)
+        ? `:${request.method.toLowerCase()}`
+        : elixirString(request.method);
+    const headers = tupleList(request.headers);
+    const params = tupleList(request.query.length > 0 ? queryPairs(request.query) : []);
+    const body = request.body !== undefined ? elixirString(request.body) : `""`;
 
-        if (body instanceof JsonBody) {
-            return formatMap(body.body);
-        }
-
-        return `"${body}"`;
-    }
-
-    const method = (options.method || "GET").toLowerCase();
-    const headers = formatMap(options.headers || {});
-    const params = formatMap(options.query || {});
-    const body = formatBody(options.body);
-
-    const code = `defmodule Example do
-  use HTTPoison.Base
-
+    return `defmodule Example do
   def request do
-    url = "${options.url}"
+    url = ${elixirString(request.url)}
     headers = ${headers}
     params = ${params}
     body = ${body}
 
-    response = HTTPoison.${method}!(url${body !== "nil" ? ", body" : ""}, headers, params: params)
+    response = HTTPoison.request!(${method}, url, body, headers, params: params)
   end
 end`;
-
-    return code;
 }

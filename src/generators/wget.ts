@@ -1,38 +1,20 @@
-import { JsonBody, RequestOptions } from "../request";
+import { shellQuote } from "../escape";
+import { Request } from "../request";
 
-export function generateWgetCode(options: RequestOptions): string {
-    let wgetCommand = `wget`;
+export function generateWgetCode(request: Request): string {
+    const lines = ["wget"];
 
-    if (options.method && options.method.toUpperCase() === "POST") {
-        if (options.body instanceof JsonBody) {
-            wgetCommand += ` --post-data '${JSON.stringify(options.body.body)}'`;
-        } else if (options.body) {
-            wgetCommand += ` --post-data '${options.body}'`;
-        }
+    if (request.method !== "GET" || request.body !== undefined) {
+        lines.push(`--method=${shellQuote(request.method)}`);
     }
-
-    if (options.headers) {
-        for (const [key, value] of Object.entries(options.headers)) {
-            wgetCommand += ` \\\n  --header '${key}: ${value}'`;
-        }
+    if (request.body !== undefined) {
+        lines.push(`--body-data=${shellQuote(request.body)}`);
     }
-
-    let url = options.url;
-    if (options.query) {
-        const queryParams = [];
-        for (const [key, value] of Object.entries(options.query)) {
-            if (Array.isArray(value)) {
-                value.forEach(v => {
-                    queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(v)}`);
-                });
-            } else {
-                queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-            }
-        }
-        url += (url.includes("?") ? "&" : "?") + queryParams.join("&");
+    for (const [name, value] of request.headers) {
+        lines.push(`--header=${shellQuote(`${name}: ${value}`)}`);
     }
+    lines.push(`-O -`);
+    lines.push(shellQuote(request.fullUrl));
 
-    wgetCommand += ` \\\n  '${url}'`;
-
-    return wgetCommand;
+    return lines.join(" \\\n  ");
 }

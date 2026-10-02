@@ -1,42 +1,45 @@
-import { RequestOptions, JsonBody } from "../request";
+import { Request, queryValues } from "../request";
+import { unsupportedTarget } from "../errors";
+import { phpString } from "../escape";
+import { formatLiteral } from "./common";
+import { PHP, phpArray } from "./php-common";
 
-export function generatePHPRequestsCode(options: RequestOptions): string {
-    const formatObject = (obj: any): string => {
-        if (!obj || Object.keys(obj).length === 0) {
-            return '[]';
-        }
-        const entries = Object.entries(obj).map(([key, value]) => 
-            `    '${key}' => ${typeof value === 'string' ? `'${value}'` : JSON.stringify(value)}`
-        ).join(",\n");
-        return `[\n${entries}\n]`;
-    };
-
-    let code = `<?php\n`;
-    code += `require 'vendor/autoload.php';\n\n`;
-    code += `$url = '${options.url}';\n`;
-    code += `$method = '${options.method || "GET"}';\n`;
-    code += `$headers = ${formatObject(options.headers)};\n`;
-    code += `$query = ${formatObject(options.query)};\n`;
-    
-    if (options.body) {
-        if (options.body instanceof JsonBody) {
-            code += `$body = ${formatObject(options.body.body)};\n`;
-        } else if (typeof options.body === 'string') {
-            try {
-                const bodyObj = JSON.parse(options.body);
-                code += `$body = ${formatObject(bodyObj)};\n`;
-            } catch {
-                code += `$body = '${options.body}';\n`;
-            }
-        }
-    } else {
-        code += `$body = [];\n`;
+/** PHP with WpOrg\Requests 2 (composer require rmccue/requests). */
+export function generatePHPRequestsCode(request: Request): string {
+    if (request.headers.map(([, value]) => value).some((value) => value === "")) {
+        unsupportedTarget("PHP (Requests)", "Requests does not send headers with empty values.", "headers");
     }
-    
-    code += `\n$response = Requests::request($url, $headers, $body, $method, $query);\n`;
-    code += `if ($response->status_code >= 400) {\n`;
-    code += `    throw new Exception('Server responded with status code ' . $response->status_code);\n`;
-    code += `}\n`;
-    code += `?>`
+    let code = `<?php
+
+require 'vendor/autoload.php';
+
+$url = ${phpString(request.url)};
+`;
+
+    if (request.query.length > 0) {
+        const hasArrays = request.query.some((entry) => entry.isArray);
+        const query = phpArray(
+            queryValues(request.query).map(([key, value]) => [
+                phpString(key),
+                formatLiteral(value, PHP, 1),
+            ])
+        );
+        code += `$query = ${query};\n`;
+        code += hasArrays
+            ? `$url .= '?' . preg_replace('/%5B\\d+%5D=/', '=', http_build_query($query));\n`
+            : `$url .= '?' . http_build_query($query);\n`;
+    }
+
+    const headers = phpArray(
+        request.headers.map(([key, value]) => [
+            phpString(key),
+            phpString(value),
+        ])
+    );
+    code += `$headers = ${headers};\n`;
+    code += `$body = ${request.body !== undefined ? phpString(request.body) : "[]"};\n`;
+
+    code += `\n$response = \\WpOrg\\Requests\\Requests::request($url, $headers, $body, ${phpString(request.method)});`;
+
     return code;
 }

@@ -1,47 +1,47 @@
-import { RequestOptions, JsonBody } from "../request";
+import { Request, queryValues } from "../request";
+import { phpString } from "../escape";
+import { formatLiteral } from "./common";
+import { PHP, phpArray, phpList } from "./php-common";
 
-export function generatePHPCode(options: RequestOptions): string {
+/** PHP with stream contexts (file_get_contents), no extensions required. */
+export function generatePHPCode(request: Request): string {
     let code = `<?php
 
-$method = '${options.method || 'GET'}';
-$url = '${options.url}';\n`;
+$method = ${phpString(request.method)};
+$url = ${phpString(request.url)};\n`;
 
-    if (options.query) {
-        code += `$query = [\n`;
-        for (const [key, value] of Object.entries(options.query)) {
-            code += `    '${key}' => ${JSON.stringify(value)},\n`;
-        }
-        code += `];\n`;
-        code += `$url .= '?' . http_build_query($query);\n`;
+    if (request.query.length > 0) {
+        const hasArrays = request.query.some((entry) => entry.isArray);
+        const query = phpArray(
+            queryValues(request.query).map(([key, value]) => [
+                phpString(key),
+                formatLiteral(value, PHP, 1),
+            ])
+        );
+        code += `$query = ${query};\n`;
+        code += hasArrays
+            ? `$url .= '?' . preg_replace('/%5B\\d+%5D=/', '=', http_build_query($query));\n`
+            : `$url .= '?' . http_build_query($query);\n`;
     }
 
-    code += `\n$options = [\n`;
-    code += `    'http' => [\n`;
-    code += `        'method' => $method,\n`;
-
-    if (options.headers) {
-        code += `        'header' => [\n`;
-        for (const [key, value] of Object.entries(options.headers)) {
-            code += `            '${key}: ${value}',\n`;
-        }
-        code += `        ],\n`;
+    const http: [string, string][] = [["'method'", "$method"]];
+    if (request.headers.length > 0) {
+        http.push([
+            "'header'",
+            phpList(
+                request.headers.map(([key, value]) =>
+                    phpString(`${key}: ${value}`)
+                ),
+                2
+            ),
+        ]);
     }
-
-    if (options.body) {
-        if (options.body instanceof JsonBody) {
-            code += `        'content' => json_encode([\n`;
-            for (const [key, value] of Object.entries(options.body.body)) {
-                code += `            '${key}' => ${JSON.stringify(value)},\n`;
-            }
-            code += `        ]),\n`;
-        } else {
-            code += `        'content' => '${options.body}',\n`;
-        }
+    if (request.body !== undefined) {
+        http.push(["'content'", phpString(request.body)]);
     }
+    http.push(["'ignore_errors'", "true"]);
 
-    code += `    ],\n`;
-    code += `];\n\n`;
-
+    code += `\n$options = ${phpArray([["'http'", phpArray(http, 1)]])};\n\n`;
     code += `$context = stream_context_create($options);
 $response = file_get_contents($url, false, $context);`;
 

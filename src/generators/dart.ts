@@ -1,84 +1,61 @@
-import { JsonBody, RequestOptions } from "../request";
+import { Request, queryValues } from "../request";
+import { dartString, indent } from "../escape";
 
-export function generateDartCode(options: RequestOptions): string {
-    let code = `import 'dart:convert';
+function dartMap(entries: [string, string][]): string {
+    return `{\n${entries
+        .map(([key, value]) => `    ${dartString(key)}: ${value},`)
+        .join("\n")}\n}`;
+}
+
+export function generateDartCode(request: Request): string {
+    const lines: string[] = [];
+    let url = "url";
+
+    lines.push(`final url = Uri.parse(${dartString(request.url)});`);
+
+    if (request.query.length > 0) {
+        const query = dartMap(
+            queryValues(request.query).map(([key, value]) => [
+                key,
+                Array.isArray(value)
+                    ? `[${value.map(dartString).join(", ")}]`
+                    : dartString(value),
+            ])
+        );
+        lines.push(`final queryParameters = ${indent(query, 4)};`);
+        lines.push(`final urlWithQuery = url.replace(queryParameters: queryParameters);`);
+        url = "urlWithQuery";
+    }
+
+    const headers = request.headers.length > 0
+        ? dartMap(
+              request.headers.map(([key, value]) => [key, dartString(value)])
+          )
+        : undefined;
+
+    lines.push(``);
+    if (request.method === "GET" && request.body === undefined) {
+        lines.push(
+            headers
+                ? `final response = await http.get(\n    ${url},\n    headers: ${indent(headers, 4)},\n);`
+                : `final response = await http.get(${url});`
+        );
+    } else {
+        lines.push(`final request = http.Request(${dartString(request.method)}, ${url});`);
+        if (headers) {
+            lines.push(`request.headers.addAll(${indent(headers, 0)});`);
+        }
+        if (request.body !== undefined) {
+            lines.push(`request.bodyBytes = utf8.encode(${dartString(request.body)});`);
+        }
+        lines.push(``);
+        lines.push(`final response = await http.Response.fromStream(await request.send());`);
+    }
+
+    return `import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 Future<void> request() async {
-    final url = Uri.parse('${options.url}');`;
-
-    if (options.query) {
-        code += `\n    final queryParameters = ${JSON.stringify(
-            options.query,
-            null,
-            4
-        )
-            .split("\n")
-            .map((line, index) => (index === 0 ? line : "    " + line))
-            .join("\n")};`;
-        code += `\n    final urlWithQuery = url.replace(queryParameters: queryParameters);`;
-    }
-
-    if (options.method === "POST" || options.method === "PUT") {
-        if (options.body && options.body instanceof JsonBody) {
-            code += `\n`;
-            code += `\n    final options = ${JSON.stringify(
-                options.body.body,
-                null,
-                4
-            )
-                .split("\n")
-                .map((line, index) => (index === 0 ? line : "    " + line))
-                .join("\n")};`;
-        }
-
-        code += `\n\n    final response = await http.${options.method.toLowerCase()}(`;
-        code += `\n        ${options.query ? "urlWithQuery" : "url"}`;
-
-        if (options.headers) {
-            code += `,\n        headers: ${JSON.stringify(
-                options.headers,
-                null,
-                4
-            )
-                .split("\n")
-                .map((line, index) => (index === 0 ? line : "        " + line))
-                .join("\n")}`;
-        }
-
-        if (options.body) {
-            if (options.body instanceof JsonBody) {
-                code += `,\n        body: jsonEncode(options)`;
-            } else {
-                code += `,\n        body: '${options.body}'`;
-            }
-        }
-
-        code += `\n    );`;
-    } else {
-        code += `\n\n    final response = await http.get(`;
-        code += `\n        ${options.query ? "urlWithQuery" : "url"}`;
-
-        if (options.headers) {
-            code += `,\n        headers: ${JSON.stringify(
-                options.headers,
-                null,
-                4
-            )
-                .split("\n")
-                .map((line, index) => (index === 0 ? line : "        " + line))
-                .join("\n")}`;
-        }
-
-        code += `\n    );`;
-    }
-
-    code += `\n\n    if (response.statusCode != 200) {
-        throw Exception('Request failed with status: \${response.statusCode}');
-    }
-
-    // process response    
+${lines.map((line) => (line ? indent(`    ${line}`, 4) : "")).join("\n")}
 }`;
-
-    return code;
 }

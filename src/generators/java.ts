@@ -1,92 +1,98 @@
-import { RequestOptions, JsonBody } from "../request";
+import { Request, queryPairs } from "../request";
+import { unsupportedTarget } from "../errors";
+import { javaString } from "../escape";
 
-export function generateJavaCode(options: RequestOptions): string {
-    function formatHeaders(headers: any): string {
-        if (!headers) return "";
-        return Object.entries(headers)
-            .map(([key, value]) => `        conn.setRequestProperty("${key}", "${value}");`)
-            .join("\n");
+// HttpURLConnection silently drops these unless restricted headers are allowed.
+const RESTRICTED_HEADERS = new Set([
+    "access-control-request-headers",
+    "access-control-request-method",
+    "connection",
+    "content-length",
+    "content-transfer-encoding",
+    "host",
+    "keep-alive",
+    "origin",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "via",
+]);
+
+const URL_CONNECTION_METHODS = new Set([
+    "GET",
+    "POST",
+    "HEAD",
+    "OPTIONS",
+    "PUT",
+    "DELETE",
+    "TRACE",
+]);
+
+export function generateJavaCode(request: Request): string {
+    if (!URL_CONNECTION_METHODS.has(request.method)) {
+        unsupportedTarget(
+            "Java",
+            `HttpURLConnection does not support the ${request.method} method.`,
+            "method"
+        );
     }
 
-    function formatQueryParams(query: any): string {
-        if (!query) return "";
-        return Object.entries(query)
-            .map(([key, value]) => {
-                if (Array.isArray(value)) {
-                    return value.map(v => `        params.add("${key}", "${v}");`).join("\n");
-                }
-                return `        params.add("${key}", "${value}");`;
-            })
-            .join("\n");
+    const lines: string[] = [];
+    if (request.headers.map(([name]) => name).some((name) => RESTRICTED_HEADERS.has(name.toLowerCase()))) {
+        lines.push(`System.setProperty("sun.net.http.allowRestrictedHeaders", "true");`);
     }
-
-    function formatJsonBody(body: string | JsonBody): string {
-        if (!body) return "";
-        if (body instanceof JsonBody) {
-            return JSON.stringify(body.body, null, 4)
-                .split("\n")
-                .map(line => "            " + line)
-                .join("\n");
+    if (request.query.length > 0) {
+        lines.push(`List<String[]> params = new ArrayList<>();`);
+        for (const [key, value] of queryPairs(request.query)) {
+            lines.push(`params.add(new String[] {${javaString(key)}, ${javaString(value)}});`);
         }
-        return body;
+        lines.push(``);
+        lines.push(`StringJoiner query = new StringJoiner("&");`);
+        lines.push(`for (String[] param : params) {`);
+        lines.push(
+            `    query.add(URLEncoder.encode(param[0], StandardCharsets.UTF_8) + "=" + URLEncoder.encode(param[1], StandardCharsets.UTF_8));`
+        );
+        lines.push(`}`);
+        lines.push(``);
+        lines.push(`URL url = new URL(${javaString(request.url + "?")} + query);`);
+    } else {
+        lines.push(`URL url = new URL(${javaString(request.url)});`);
     }
 
-    const code = `import java.io.BufferedReader;
-import java.io.InputStreamReader;
+    lines.push(`HttpURLConnection conn = (HttpURLConnection) url.openConnection();`);
+    lines.push(`conn.setRequestMethod(${javaString(request.method)});`);
+    for (const [key, value] of request.headers) {
+        lines.push(`conn.setRequestProperty(${javaString(key)}, ${javaString(value)});`);
+    }
+
+    if (request.body !== undefined) {
+        lines.push(``);
+        lines.push(`conn.setDoOutput(true);`);
+        lines.push(`try (OutputStream os = conn.getOutputStream()) {`);
+        lines.push(`    os.write(${javaString(request.body)}.getBytes(StandardCharsets.UTF_8));`);
+        lines.push(`}`);
+    }
+
+    lines.push(``);
+    lines.push(`int responseCode = conn.getResponseCode();`);
+    lines.push(
+        `InputStream response = responseCode >= 400 ? conn.getErrorStream() : conn.getInputStream();`
+    );
+
+    return `import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringJoiner;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        Map<String, String> params = new LinkedHashMap<>();
-${formatQueryParams(options.query)}
-
-        StringBuilder urlBuilder = new StringBuilder("${options.url}");
-        if (!params.isEmpty()) {
-            urlBuilder.append("?");
-            boolean first = true;
-            for (Map.Entry<String, String> entry : params.entrySet()) {
-                if (!first) {
-                    urlBuilder.append("&");
-                }
-                urlBuilder.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
-                urlBuilder.append("=");
-                urlBuilder.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
-                first = false;
-            }
-        }
-
-        HttpURLConnection conn = (HttpURLConnection) new URL(urlBuilder.toString()).openConnection();
-        conn.setRequestMethod("${options.method || "GET"}");
-${formatHeaders(options.headers)}
-${options.body ? `
-        conn.setDoOutput(true);
-        try (OutputStream os = conn.getOutputStream()) {
-            byte[] input = ${options.body instanceof JsonBody ? 
-            `String.format(
-${formatJsonBody(options.body)}
-            ).getBytes("utf-8")` : 
-            `"${options.body}".getBytes("utf-8")`};
-            os.write(input, 0, input.length);
-        }` : ""}
-
-        StringBuilder response = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(
-                conn.getResponseCode() >= 400 ? conn.getErrorStream() : conn.getInputStream()))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                response.append(line);
-            }
-        }
-        conn.disconnect();
+${lines.map((line) => (line ? `        ${line}` : "")).join("\n")}
     }
 }
-`
-
-    return code;
+`;
 }

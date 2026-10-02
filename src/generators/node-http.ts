@@ -1,67 +1,50 @@
-import { JsonBody, RequestOptions } from "../request";
+import { Request, queryPairs } from "../request";
+import { jsString } from "../escape";
 
-export function generateNodeHTTPCode(options: RequestOptions): string {
-    const url = new URL(options.url);
-    const isHttps = url.protocol === "https:";
-    const defaultPort = isHttps ? 443 : 80;
+export function generateNodeHTTPCode(request: Request): string {
+    const isHttps = new URL(request.url).protocol === "https:";
+    const module = isHttps ? "https" : "http";
+    const lines: string[] = [];
 
-    // Format query parameters as a proper object if present
-    let queryObject = "";
-    if (options.query && Object.keys(options.query).length > 0) {
-        queryObject = `const query = {\n    ${Object.entries(options.query)
-            .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-            .join(",\n    ")}\n};\n\n`;
-    }
-
-    // Format body as a proper JSON object if it's JSON
-    let bodyObject = "";
-    if (options.body) {
-        if (options.body instanceof JsonBody) {
-            const parsedBody = options.body.body;
-            if (typeof parsedBody === "object") {
-                bodyObject = `const body = {\n    ${Object.entries(parsedBody)
-                    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-                    .join(",\n    ")}\n};\n\n`;
-            }
-        } else {
-            // If not JSON, use as is
-            bodyObject = `const body = ${JSON.stringify(options.body)};\n\n`;
+    lines.push(`const ${module} = require(${jsString(module)});`);
+    lines.push(``);
+    lines.push(`const url = new URL(${jsString(request.url)});`);
+    if (request.query.length > 0) {
+        for (const [key, value] of queryPairs(request.query)) {
+            lines.push(`url.searchParams.append(${jsString(key)}, ${jsString(value)});`);
         }
     }
+    if (request.body !== undefined) {
+        lines.push(``);
+        lines.push(`const body = ${jsString(request.body)};`);
+    }
 
-    const code = `const ${isHttps ? "https" : "http"} = require('${
-        isHttps ? "https" : "http"
-    }');
-${
-    options.query ? "const querystring = require('querystring');\n" : ""
-}${queryObject}${bodyObject}const options = {
-    hostname: '${url.hostname}',
-    port: ${url.port || defaultPort},
-    path: '${url.pathname}'${
-        options.query ? " + '?' + querystring.stringify(query)" : ""
-    },
-    method: '${options.method || "GET"}',
-    headers: ${JSON.stringify(options.headers || {})}
-};
+    const headers = request.headers;
+    lines.push(``);
+    lines.push(`const options = {`);
+    lines.push(`    method: ${jsString(request.method)},`);
+    if (headers.length > 0) {
+        lines.push(`    headers: {`);
+        for (const [key, value] of headers) {
+            lines.push(`        ${jsString(key)}: ${jsString(value)},`);
+        }
+        lines.push(`    },`);
+    }
+    lines.push(`};`);
 
-let response = '';
-const req = ${isHttps ? "https" : "http"}.request(options, (res) => {
-    res.on('data', (chunk) => {
-        response += chunk;
-    });
-});
+    lines.push(``);
+    lines.push(`const req = ${module}.request(url, options, (response) => {`);
+    lines.push(`    response.resume();`);
+    lines.push(`});`);
+    lines.push(``);
+    lines.push(`req.on("error", (error) => {`);
+    lines.push(`    console.error(error);`);
+    lines.push(`});`);
+    if (request.body !== undefined) {
+        lines.push(``);
+        lines.push(`req.write(body);`);
+    }
+    lines.push(`req.end();`);
 
-req.on('error', (error) => {
-    console.error(error);
-});
-${
-    options.body
-        ? options.body instanceof JsonBody
-            ? "\nreq.write(JSON.stringify(body));"
-            : "\nreq.write(body);"
-        : ""
-}
-req.end();`;
-
-    return code;
+    return lines.join("\n");
 }

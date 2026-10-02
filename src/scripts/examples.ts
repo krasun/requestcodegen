@@ -1,7 +1,5 @@
 import { writeFile } from "fs/promises";
-import { CodeTarget } from "../target";
-
-import { generateCode, JsonBody, RequestOptions } from "../generator";
+import { CodeTarget, generateCode, RequestOptions } from "../index";
 
 async function main() {
     const [outputPath] = process.argv.slice(2);
@@ -9,67 +7,36 @@ async function main() {
         throw new Error("Output path is required");
     }
 
-    const examples: Record<string, string> = {};
-
-    const options: { post: RequestOptions; get: RequestOptions } = {
-        post: {
-            url: "http://example.com",
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: new JsonBody({ name: "John Doe", baz: ["qux", "quix"] }),
-        },
-        get: {
-            url: "http://example.com",
+    const requests: Record<string, RequestOptions> = {
+        GET: {
+            url: "https://example.com",
             method: "GET",
             query: {
                 baz: ["qux", "quix"],
                 foo: "bar",
             },
         },
+        POST: {
+            url: "https://example.com",
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ name: "John Doe", baz: ["qux", "quix"] }),
+        },
     };
-    for (const [target, readableName] of Object.entries(CodeTarget)) {
-        const postCode = await generateCode(
-            options.post,
-            readableName as CodeTarget
-        );
-        if (!postCode) {
-            throw new Error(`Failed to generate POST code for ${target}`);
-        }
-        const getCode = await generateCode(
-            options.get,
-            readableName as CodeTarget
-        );
-        if (!getCode) {
-            throw new Error(`Failed to generate GET code for ${target}`);
-        }
 
-        examples[`${target}_post`] = postCode;
-        examples[`${target}_get`] = getCode;
+    let markdown = "# Code Examples\n\n";
+    for (const [key, target] of Object.entries(CodeTarget)) {
+        for (const [method, request] of Object.entries(requests)) {
+            markdown += `## ${target} (${method})\n\n\`\`\`${key}\n${generateCode(request, target)}\n\`\`\`\n\n`;
+        }
     }
 
-    let markdownContent = "# Code Examples\n\n";
-
-    for (const [target, code] of Object.entries(examples)) {
-        const isPost = target.endsWith("_post");
-        const isGet = target.endsWith("_get");
-        const baseTarget =
-            isPost || isGet
-                ? target.substring(0, target.lastIndexOf("_"))
-                : target;
-        const targetName = CodeTarget[baseTarget as keyof typeof CodeTarget];
-        const methodType = isPost ? " (POST)" : isGet ? " (GET)" : "";
-
-        markdownContent += `## ${targetName}${methodType}\n\n\`\`\`${baseTarget}\n${code}\n\`\`\`\n\n`;
-    }
-
-    await writeFile(outputPath, markdownContent);
+    await writeFile(outputPath, markdown);
 }
 
-main()
-    .then()
-    .catch((e) => {
-        console.error(e);
-        process.exit(1);
-    });
+main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+});
