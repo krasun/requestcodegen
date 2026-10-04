@@ -7,6 +7,8 @@
 
 It is synchronous, has no runtime dependencies and works offline in browsers and Node.js 18+. It never executes commands, reads files or makes network requests.
 
+Try it online with the free [curl converter](https://screenshotone.com/tools/curl-converter/), which runs on this library in the browser.
+
 ## Install
 
 ```shell
@@ -243,6 +245,7 @@ Check out examples of generated code in the [examples.md](examples.md) file.
 ## Known usages
 
 1. [ScreenshotOne](https://screenshotone.com) uses the library for generating code examples in the playground for the screenshot API.
+2. [ScreenshotOne's free curl converters](https://screenshotone.com/tools/curl-converter/) run on the library in the browser: [curl Converter](https://screenshotone.com/tools/curl-converter/), [curl to Python](https://screenshotone.com/tools/curl-to-python/), [curl to JavaScript](https://screenshotone.com/tools/curl-to-javascript/), [curl to Axios](https://screenshotone.com/tools/curl-to-axios/), [curl to PHP](https://screenshotone.com/tools/curl-to-php/), [curl to JSON](https://screenshotone.com/tools/curl-to-json/), [JSON to curl](https://screenshotone.com/tools/json-to-curl/), [HTTP to curl](https://screenshotone.com/tools/http-to-curl/) and [URL to curl](https://screenshotone.com/tools/url-to-curl/).
 
 If you use the library, please, don't hesitate to share how and in what project.
 
